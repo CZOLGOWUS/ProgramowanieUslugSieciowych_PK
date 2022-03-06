@@ -18,10 +18,14 @@
 #include <sys/ioctl.h>
 #include <sys/time.h>
 
+#define MAX_CLIENTS 20      //maskymalna obslugiwana liczba klientow
+
 int main(int argc, char** argv) {
 
-    int             sockfd; /* Deskryptor gniazda. */
-    int             retval; /* Wartosc zwracana przez funkcje. */
+    int main_sd;                // Deskryptor gniazda glownego.
+    int client_sd[MAX_CLIENTS]; // Deksryptory klientow.
+    int retval;
+    int max_sd;                 // Maks. deskryptor (potrzebne funkcji select)
 
     /* Gniazdowe struktury adresowe (dla klienta i serwera): */
     struct          sockaddr_in client_addr, server_addr;
@@ -35,20 +39,18 @@ int main(int argc, char** argv) {
     /* Bufor dla adresu IP klienta w postaci kropkowo-dziesietnej: */
     char            addr_buff[256];
 
-
-    // potrzebne dla select
-    fd_set        master_set, working_set;
-    int    listen_sd, max_sd, new_sd;
-
-
+    // zbior deskryptorow uzywany przez select
+    fd_set          descriptors_set;
+    
+    
     if (argc != 2) {
         fprintf(stderr, "Invocation: %s <PORT>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
     /* Utworzenie gniazda dla protokolu TCP: */
-    sockfd = socket(PF_INET, SOCK_STREAM, 0);
-    if (sockfd == -1) {
+    main_sd = socket(PF_INET, SOCK_STREAM, 0);
+    if (main_sd == -1) {
         perror("socket()");
         exit(EXIT_FAILURE);
     }
@@ -67,83 +69,112 @@ int main(int argc, char** argv) {
     server_addr_len                 =       sizeof(server_addr);
 
     /* Powiazanie "nazwy" (adresu IP i numeru portu) z gniazdem: */
-    if (bind(sockfd, (struct sockaddr*) &server_addr, server_addr_len) == -1) {
+    if (bind(main_sd, (struct sockaddr*) &server_addr, server_addr_len) == -1) {
         perror("bind()");
         exit(EXIT_FAILURE);
     }
 
-    FD_ZERO(&master_set);
-    max_sd = listen_sd;
-    FD_SET(listen_sd, &master_set);
-
-
-
-
-
-
-
+int current_sd; //temp
+int activity;
+int new_sd;
 while(1)
 {
-    fprintf(stdout, "Server is listening for incoming connections...\n");
-
-    client_addr_len = sizeof(client_addr);
-
-    /* Oczekiwanie na dane od klienta: */
-    retval = recvfrom(
-                 sockfd,
-                 buff, 
-                 sizeof(buff),
-                 0,
-                 (struct sockaddr*)&client_addr, &client_addr_len
-             );
-
-    if(retval == 0)
-    {
-        close(sockfd);
-        printf("received empty msg, shuting down server\n");
-        exit(EXIT_SUCCESS);
-    }
-
-    buff[retval] = '\0';
-
-    if (retval == -1) {
-        perror("recvfrom()");
-        exit(EXIT_FAILURE);
-
-    }
-
-    fprintf(stdout, "UDP datagram received from %s:%d.\n",
-            inet_ntop(AF_INET, &client_addr.sin_addr, addr_buff, sizeof(addr_buff)),
-            ntohs(client_addr.sin_port)
-           );
-
-
-
-    int palindromResult = 0;
-    char respondBuff[3];
-
-    sprintf(respondBuff,"%d",palindromResult);
-    printf("result : %s\n",respondBuff);
+    //clear the socket set 
+    FD_ZERO(&descriptors_set);  
     
-    /* Wyslanie odpowiedzi (echo): */
-    retval = sendto(
-                 sockfd,
-                 respondBuff, 
-                 sizeof(respondBuff),
-                 0,
-                 (struct sockaddr*)&client_addr, 
-                 client_addr_len
-             );
-             
-    if (retval == -1) {
-        perror("sendto()");
-        exit(EXIT_FAILURE);
-    }
+    //add master socket to set 
+    FD_SET(main_sd, &descriptors_set);  
+    max_sd = main_sd;  
+            
+    //add child sockets to set 
+    for (int i = 0 ; i < MAX_CLIENTS ; i++)  
+    {  
+        //socket descriptor 
+        current_sd = client_sd[i];  
+                
+        //if valid socket descriptor then add to read list 
+        if(current_sd > 0)  
+            FD_SET( current_sd , &descriptors_set);  
+                
+        //highest file descriptor number, need it for the select function 
+        if(current_sd > max_sd)  
+            max_sd = current_sd;  
+    }  
+    
+    //wait for an activity on one of the sockets
+    activity = select( max_sd + 1 , &descriptors_set , NULL , NULL , NULL);  
+    
+    if ((activity < 0) && (errno!=EINTR))  
+    {  
+        printf("select() error");  
+    }  
+            
+    
+    if (FD_ISSET(main_sd, &descriptors_set))  
+    {  
+        //Nowe poloczenie
+        if ((new_sd = accept(main_sd, 
+                (struct sockaddr *)&client_addr, (socklen_t*)&client_addr_len))<0)  
+        {  
+            perror("accept() error");  
+            exit(EXIT_FAILURE);  
+        }  
+            
+        //inform user of socket number - used in send and receive commands 
+        printf("Nowe poloczenie %d\n  ip: %s\n  port : %d\n\n" , new_sd , inet_ntoa(client_addr.sin_addr) , ntohs(client_addr.sin_port)); 
+
+        //send test message TODO TO-DO
+        char msg[50] = "test";
+        retval = send(new_sd, msg, strlen(msg), 0);
+        if(retval != strlen(msg))  
+        {  
+            perror("send");  
+        }  
+                
+        //dodaj nowego klienta
+        for (int i = 0; i < MAX_CLIENTS; i++)  
+        {  
+            if( client_sd[i] == 0 )  
+            {  
+                client_sd[i] = new_sd;  
+                break;  
+            }  
+        }  
+    }  
+            
+    //else its some IO operation on some other socket
+    for (int i = 0; i < MAX_CLIENTS; i++)  
+    {  
+        current_sd = client_sd[i];  
+                
+        if (FD_ISSET(current_sd, &descriptors_set))  
+        {  
+            //Check if it was for closing , and also read the incoming message 
+            if ((retval = read(current_sd, buff, 1024)) == 0)  
+            {  
+                //Somebody disconnected , get his details and print 
+                getpeername(current_sd , (struct sockaddr*)&client_addr , \
+                    (socklen_t*)&client_addr_len);  
+                printf("Klient zamyka polonczenie\n  ip: %s\n  port: %d\n\n" , 
+                        inet_ntoa(client_addr.sin_addr) , ntohs(client_addr.sin_port));  
+                        
+                close(current_sd);  
+                client_sd[i] = 0;  
+            }  
+                    
+            //Echo back the message that came in 
+            else 
+            {  
+                buff[retval] = '\0';  
+                send(current_sd, buff, strlen(buff), 0);  
+            }  
+        }  
+    }  
 
 }
     
 
-    close(sockfd);
+    close(main_sd);
 
 
     exit(EXIT_SUCCESS);
