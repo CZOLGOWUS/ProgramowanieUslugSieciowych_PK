@@ -1,8 +1,5 @@
 /*
- * Data:                2009-02-10
- * Autor:               Jakub Gasior <quebes@mars.iti.pk.edu.pl>
- * Kompilacja:          $ gcc client2.c -o client2
- * Uruchamianie:        $ ./client2 <adres IP> <numer portu> <wiadomosc>
+ * Uruchamianie:        $ ./client3 <adres IP> <numer portu>
  */
 
 #include <stdio.h>
@@ -20,21 +17,16 @@ int main(int argc, char** argv) {
     int             retval;                 /* Wartosc zwracana przez funkcje. */
     struct          sockaddr_in remote_addr;/* Gniazdowa struktura adresowa. */
     socklen_t       addr_len;               /* Rozmiar struktury w bajtach. */
+    char            msg[256];               // wiadomosc do wyslania
     char            buff[256];              /* Bufor dla funkcji recvfrom(). */
 
 
-    if (argc != 4) {
+    if (argc != 3) {
         fprintf(
             stderr,
-            "Invocation: %s <IPv4 ADDRESS> <PORT> <MESSAGE>\n", argv[0]
+            "Invocation: %s <IPv4 ADDRESS> <PORT>\n", argv[0]
         );
         exit(EXIT_FAILURE);
-    }
-
-    /* Przyciecie wiadomosci, jezeli jest za dluga: */
-    if (strlen(argv[3]) > 255) {
-        fprintf(stdout, "Truncating message.\n");
-        argv[3][255] = '\0';
     }
 
     /* Utworzenie gniazda dla protokolu UDP: */
@@ -62,38 +54,66 @@ int main(int argc, char** argv) {
     remote_addr.sin_port = htons(atoi(argv[2])); /* Numer portu. */
     addr_len = sizeof(remote_addr); /* Rozmiar struktury adresowej w bajtach. */
 
-    sleep(1);
+    // skojarzenie adresu z gniazdem
+    retval = connect(sockfd,(const struct sockaddr*) &remote_addr, addr_len);
+    if(retval==-1)
+    {
+        perror("connect()");
+        exit(EXIT_FAILURE);
+    }
 
+    while(1)
+    {
+        // Wprowadzenie wiadomosci do wyslania:
+        fprintf(
+            stdout,
+            "Enter message:\n"
+        );
+
+        fgets(msg, 256, stdin);
+
+        if(msg[0]=='\n')
+        {
+            msg[0]='\0';
+        }
+
+        fprintf(
+            stdout,
+            "DEBUG: '%s'\n",
+            msg
+        );
+        retval = send(sockfd,msg,strlen(msg),0);
+        if (retval == -1) {
+            perror("sendto()");
+            exit(EXIT_FAILURE);
+        }
+
+        if(msg[0]=='\0')
+        {
+            break;
+        }
+        
+        fprintf(
+            stdout,
+            "Waiting for server...\n"
+        );
+
+        // Oczekiwanie na odpowiedz.
+        retval = recv(sockfd, buff, sizeof(buff), 0);
+        if (retval == -1) {
+            perror("recv()");
+            exit(EXIT_FAILURE);
+        }
+        buff[retval] = '\0';
+        fprintf(stdout, "Server response: '%s'\n", buff);
+
+    }
+    //while(msg[0]!='\0');
+    
     fprintf(
         stdout,
-        "Sending message to %s.\nWaiting for server response...\n", argv[1]
+        "Closing client app...\n"
     );
-
-    sleep(2);
-
-    /* sendto() wysyla dane na adres okreslony przez strukture 'remote_addr': */
-    retval = sendto(
-                 sockfd,
-                 argv[3], strlen(argv[3]),
-                 0,
-                 (struct sockaddr*)&remote_addr, addr_len
-             );
-    if (retval == -1) {
-        perror("sendto()");
-        exit(EXIT_FAILURE);
-    }
-
-    /* Oczekiwanie na odpowiedz.
-     * Nie interesuje nas adres, z ktorego wyslano odpowiedz: */
-    retval = recvfrom(sockfd, buff, sizeof(buff), 0, NULL, NULL);
-    if (retval == -1) {
-        perror("recvfrom()");
-        exit(EXIT_FAILURE);
-    }
-
-    buff[retval] = '\0';
-
-    fprintf(stdout, "Server response: '%s'\n", buff);
 
     close(sockfd);
 
