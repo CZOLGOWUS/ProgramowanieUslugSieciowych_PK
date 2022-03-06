@@ -1,37 +1,22 @@
 /*
- * Data:                2009-02-10
- * Autor:               Jakub Gasior <quebes@mars.iti.pk.edu.pl>
- * Kompilacja:          $ gcc server2.c -o server2
- * Uruchamianie:        $ ./server2 <numer portu>
+ * Uruchamianie:        $ ./server4 <numer portu>
  */
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/socket.h> /* socket() */
+#include <sys/socket.h> /* socket(), listen() */
+#include <sys/select.h> /* select() fd_set */
 #include <netinet/in.h> /* struct sockaddr_in */
 #include <arpa/inet.h>  /* inet_ntop() */
 #include <unistd.h>     /* close() */
 #include <string.h>
 #include <errno.h>
-#include <time.h>
 
-#include "libpalindrome.h"
+#include <sys/types.h>
+#include <unistd.h>
 
-
-void printCurrentTime()
-{
-    time_t now;
-    struct tm *tm;
-
-    now = time(0);
-    if ((tm = localtime (&now)) == NULL) {
-        printf ("Error extracting time stuff\n");
-        return;
-    }
-
-    printf ("[ %02d:%02d:%02d ] ", tm->tm_hour, tm->tm_min, tm->tm_sec );
-}
-
+#include <sys/ioctl.h>
+#include <sys/time.h>
 
 int main(int argc, char** argv) {
 
@@ -45,10 +30,15 @@ int main(int argc, char** argv) {
     socklen_t       client_addr_len, server_addr_len;
 
     /* Bufor wykorzystywany przez recvfrom() i sendto(): */
-    //char            buff[256];
+    char            buff[256];
 
     /* Bufor dla adresu IP klienta w postaci kropkowo-dziesietnej: */
     char            addr_buff[256];
+
+
+    // potrzebne dla select
+    fd_set        master_set, working_set;
+    int    listen_sd, max_sd, new_sd;
 
 
     if (argc != 2) {
@@ -56,17 +46,12 @@ int main(int argc, char** argv) {
         exit(EXIT_FAILURE);
     }
 
-
-    /* Bufor wykorzystywany przez recvfrom() i sendto(): */
-    char            buff[256];
-
-    /* Utworzenie gniazda dla protokolu UDP: */
-    sockfd = socket(PF_INET, SOCK_DGRAM, 0);
+    /* Utworzenie gniazda dla protokolu TCP: */
+    sockfd = socket(PF_INET, SOCK_STREAM, 0);
     if (sockfd == -1) {
         perror("socket()");
         exit(EXIT_FAILURE);
     }
-
 
 
     /* Wyzerowanie struktury adresowej serwera: */
@@ -87,10 +72,19 @@ int main(int argc, char** argv) {
         exit(EXIT_FAILURE);
     }
 
+    FD_ZERO(&master_set);
+    max_sd = listen_sd;
+    FD_SET(listen_sd, &master_set);
+
+
+
+
+
+
+
 while(1)
 {
-    printCurrentTime();
-    fprintf(stdout, "Server is listening for incoming connection...\n");
+    fprintf(stdout, "Server is listening for incoming connections...\n");
 
     client_addr_len = sizeof(client_addr);
 
@@ -118,7 +112,6 @@ while(1)
 
     }
 
-    printCurrentTime();
     fprintf(stdout, "UDP datagram received from %s:%d.\n",
             inet_ntop(AF_INET, &client_addr.sin_addr, addr_buff, sizeof(addr_buff)),
             ntohs(client_addr.sin_port)
@@ -126,7 +119,7 @@ while(1)
 
 
 
-    int palindromResult = is_palindrome(buff,retval);
+    int palindromResult = 0;
     char respondBuff[3];
 
     sprintf(respondBuff,"%d",palindromResult);
