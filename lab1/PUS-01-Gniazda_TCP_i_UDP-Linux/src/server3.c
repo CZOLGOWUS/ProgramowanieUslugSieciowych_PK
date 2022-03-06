@@ -1,8 +1,5 @@
 /*
- * Data:                2009-02-10
- * Autor:               Jakub Gasior <quebes@mars.iti.pk.edu.pl>
- * Kompilacja:          $ gcc server2.c -o server2
- * Uruchamianie:        $ ./server2 <numer portu>
+ * Uruchamianie:        $ ./server3 <numer portu>
  */
 
 #include <stdio.h>
@@ -45,7 +42,7 @@ int main(int argc, char** argv) {
     socklen_t       client_addr_len, server_addr_len;
 
     /* Bufor wykorzystywany przez recvfrom() i sendto(): */
-    //char            buff[256];
+    char            buff[256];
 
     /* Bufor dla adresu IP klienta w postaci kropkowo-dziesietnej: */
     char            addr_buff[256];
@@ -55,10 +52,6 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Invocation: %s <PORT>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
-
-
-    /* Bufor wykorzystywany przez recvfrom() i sendto(): */
-    char            buff[256];
 
     /* Utworzenie gniazda dla protokolu UDP: */
     sockfd = socket(PF_INET, SOCK_DGRAM, 0);
