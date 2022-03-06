@@ -14,13 +14,22 @@
 #include <string.h>
 #include <errno.h>
 
-int main(int argc, char** argv) {
+#include <stdio.h> 
+#include <stdlib.h> 
+#include <sys/time.h> 
+#include <sys/types.h> 
+#include <unistd.h>
+
+
+int main(int argc, char** argv) 
+{
 
     int             sockfd;                 /* Desktryptor gniazda. */
     int             retval;                 /* Wartosc zwracana przez funkcje. */
     struct          sockaddr_in remote_addr;/* Gniazdowa struktura adresowa. */
     socklen_t       addr_len;               /* Rozmiar struktury w bajtach. */
     char            buff[256];              /* Bufor dla funkcji read(). */
+
 
     if (argc != 3) {
         fprintf(stderr, "Invocation: %s <IPv4 ADDRESS> <PORT>\n", argv[0]);
@@ -55,7 +64,7 @@ int main(int argc, char** argv) {
 
     /* Stosowanie funkcji sleep() pozwala lepiej zaobserwowac
      * three-way handshake w snifferze. */
-    sleep(1);
+    //sleep(1);
 
     /* Nawiazanie polaczenia (utworzenie asocjacji,
      * skojarzenie adresu zdalnego z gniazdem): */
@@ -64,31 +73,42 @@ int main(int argc, char** argv) {
         exit(EXIT_FAILURE);
     }
 
-    sleep(3);
-
     fprintf(stdout, "After three-way handshake. Waiting for server response...\n");
 
-    memset(buff, 0, 256);
+    
+    int n;
+    while(1)
+    {
+        n = 0;
+        memset(buff, 0, 256);
+        printf("Enter message:\n");
 
-    /* Odebranie danych: */
-    retval = read(sockfd, buff, sizeof(buff));
-    sleep(1);
-    fprintf(stdout, "Received server response: %s\n", buff);
+        while ( (buff[n++] = getchar()) != '\n');
 
-    sleep(4);
+        write(sockfd,buff,sizeof(buff));
+        memset(buff, 0, 256);
+        read(sockfd,buff,sizeof(buff));
 
-    /* Zamkniecie polaczenia TCP: */
-    fprintf(stdout, "Closing socket (sending FIN to server)...\n");
+        printf("message received:\n%s",buff);
+
+        if ((strncmp(buff,"exit",4)) == 0 ) 
+        {
+            printf("client exiting...\n");
+            break;
+        }
+        
+
+    }
+
+    
     close(sockfd);
 
-    sleep(9);
 
     /* Po zakonczeniu aplikacji, gniazdo przez okreslony czas (2 * MSL) bedzie
      * w stanie TIME_WAIT: */
     fprintf(stdout, "Terminating application. After receiving FIN from server, "
             "TCP connection will go into TIME_WAIT state.\n");
 
-    sleep(4);
 
     exit(EXIT_SUCCESS);
 }
