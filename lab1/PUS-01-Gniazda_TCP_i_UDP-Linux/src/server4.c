@@ -114,7 +114,6 @@ int main(int argc, char** argv) {
                 max_sd = current_sd;  
         }  
         
-
         //zaczekaj na nowa aktywnosc na glownym gniezdzie
         activity = select( max_sd + 1 , &descriptors_set , NULL , NULL , NULL);  
         
