@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
 
     printf("Waiting for connections ...");  
 
-    int current_sd;     // deskryptor, kory akurat nas ionteresuje w danym momencie petli
+    int current_sd;     // deskryptor, ktory akurat nas interesuje w danym momencie petli
     int activity;       // aktywnosc na porcie glownym
     int new_sd;         // nowy deskryptor nowego polonczenia
     while(1)
@@ -150,7 +150,7 @@ int main(int argc, char** argv) {
         for (int i = 0; i < MAX_CLIENTS; i++)  
         {  
             current_sd = client_sd[i];  
-            if (FD_ISSET(current_sd, &descriptors_set))  
+            if (FD_ISSET(current_sd, &descriptors_set))
             {  
                 if ((retval = read(current_sd, buff, BUFF_SIZE)) == 0)  
                 {  
@@ -160,7 +160,7 @@ int main(int argc, char** argv) {
                     close(current_sd);
                     client_sd[i] = 0;  
                 }  
-                else 
+                else
                 {  
                     //inna aktynosc
                     buff[retval] = '\0';  
@@ -174,7 +174,7 @@ int main(int argc, char** argv) {
                         }
                         else if(client_sd[j]!=current_sd)
                         {
-                            send(client_sd[j], buff, strlen(buff), 0);  
+                            send(client_sd[j], buff, strlen(buff), 0);
                         }  
                     }  
                 }
