@@ -110,6 +110,10 @@ int main(int argc, char **argv)
 
         printf("Nowe poloczenie %d\n  ip: %s\n  port : %d\n\n", new_sd, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
+
+        recv(new_sd,buff,sizeof(buff),0);
+        printf("%s",buff);
+
         // stwórz nowy wątek i podaj deskryptor gniazda
         pthread_t th;
         if (pthread_create(&th, NULL, &handleConnection, (void *)&new_sd) != 0)
@@ -164,35 +168,43 @@ void *handleConnection(void *arg)
     char* methodFind = strstr(buff,"GET");
     
 
-    if (methodFind != NULL)
+    if (1)
     {
-        
-        FILE *fp = fopen("index.html", "r");
+        FILE *htmlData = fopen("index.html", "r");
 
-        if(fp == NULL)
+        printf("    ----------         HERE     --------------    \n");
+        char line[100];
+        char responseData[8000];
+        while (fgets(line, 100, htmlData) != 0) 
         {
-            perror("could not open file, error :\n");
-            exit(EXIT_FAILURE);
-        }  
+            strcat(responseData, line);
+        }   
 
-        char ch;
-        char HtmlData[2000];
-        
-        while((ch = fgetc(fp)) != EOF )
-        {
-            strcat(HtmlData,&ch);
-        }
+        char pszRespond[1000]= {0};
+        char conntect_length[5];
 
-        send(socketDescritpor, HtmlData, sizeof(HtmlData), NULL);
+        sprintf(conntect_length, "%d", strlen(responseData));
+
+        char pszHostAddress[]="127.0.0.1";
+        sprintf(pszRespond, "HTTP/1.1 200 OK\n\rServer: 127.0.0.1\n\rContent-Type: text/html\n\r\n\r%s", responseData);
+
+        printf("respond header:\n%s",pszRespond);
+
+        char* dummyResponse=
+        "HTTP/1.1 200 OK\n"
+        "Server: 127.0.0.1\n"
+        "Content-Type: text/html\n"
+        "\n"
+        "<html><body>\n"
+        "<img src=\"../bin/img/mars-top.gif\"></img><br />\n"
+        "<img src=\"../bin/img/mars2.jpg\"></img><br />\n"
+        "<img src=\"../bin/img/pklogo.gif\"></img><br />\n"
+        "</body></html> \n";
+
+        printf("\n\nrespond header2:\n%s",dummyResponse);
+
+        send(socketDescritpor, dummyResponse, strlen(dummyResponse), 0);
     }
 
-    /*
-        if((retval = read(socketDescritpor,buff,sizeof(buff))) == 0 )
-        {
-            getpeername(socketDescritpor, (struct sockaddr*)&client_addr, (socklen_t*)&client_addr_len);
-            printf("Klient zamyka polonczenie\n  ip: %s\n  port: %d\n\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
-            close(socketDescritpor);
-        }
-    */
 }
 
