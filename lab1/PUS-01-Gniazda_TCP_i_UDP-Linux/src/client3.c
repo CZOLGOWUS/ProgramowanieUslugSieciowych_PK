@@ -10,6 +10,21 @@
 #include <unistd.h>     /* close() */
 #include <string.h>
 #include <errno.h>
+#include <time.h>
+
+void printCurrentTime()
+{
+    time_t now;
+    struct tm *tm;
+
+    now = time(0);
+    if ((tm = localtime (&now)) == NULL) {
+        printf ("Error extracting time stuff\n");
+        return;
+    }
+
+    printf ("[ %02d:%02d:%02d ] ", tm->tm_hour, tm->tm_min, tm->tm_sec );
+}
 
 int main(int argc, char** argv) {
 
@@ -65,6 +80,7 @@ int main(int argc, char** argv) {
     while(1)
     {
         // Wprowadzenie wiadomosci do wyslania:
+        printCurrentTime();
         fprintf(
             stdout,
             "Enter message:\n"
@@ -77,11 +93,6 @@ int main(int argc, char** argv) {
             msg[0]='\0';
         }
 
-        fprintf(
-            stdout,
-            "DEBUG: '%s'\n",
-            msg
-        );
         retval = send(sockfd,msg,strlen(msg),0);
         if (retval == -1) {
             perror("sendto()");
@@ -92,7 +103,8 @@ int main(int argc, char** argv) {
         {
             break;
         }
-        
+
+        printCurrentTime();
         fprintf(
             stdout,
             "Waiting for server...\n"
@@ -105,11 +117,12 @@ int main(int argc, char** argv) {
             exit(EXIT_FAILURE);
         }
         buff[retval] = '\0';
+        printCurrentTime();
         fprintf(stdout, "Server response: '%s'\n", buff);
 
     }
     //while(msg[0]!='\0');
-    
+    printCurrentTime();
     fprintf(
         stdout,
         "Closing client app...\n"
