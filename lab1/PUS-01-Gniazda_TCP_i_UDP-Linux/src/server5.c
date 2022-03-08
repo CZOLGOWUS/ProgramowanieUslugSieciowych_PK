@@ -26,12 +26,12 @@
 
 void *handleConnection(void *arg);
 void setHttpHeader(char httpHeader[]);
-void readFile(char* path,char result[]);
-
+void readFile(char *path, char result[]);
+void writeToFile(char path[],char text[]);
 int main(int argc, char **argv)
 {
 
-    int main_sd;                // Deskryptor gniazda glownego.
+    int main_sd; // Deskryptor gniazda glownego.
 
     /* Gniazdowe struktury adresowe (dla klienta i serwera): */
     struct sockaddr_in client_addr, server_addr;
@@ -41,7 +41,6 @@ int main(int argc, char **argv)
 
     /* Bufor wykorzystywany przez recvfrom() i sendto(): */
     char buff[BUFF_SIZE];
-
 
     if (argc != 2)
     {
@@ -59,7 +58,6 @@ int main(int argc, char **argv)
 
     /* Wyzerowanie struktury adresowej serwera: */
     memset(&server_addr, 0, sizeof(server_addr));
-
 
     /* Domena komunikacyjna (rodzina protokolow): */
     server_addr.sin_family = AF_INET;
@@ -99,9 +97,8 @@ int main(int argc, char **argv)
 
         printf("Nowe poloczenie %d\n  ip: %s\n  port : %d\n\n", new_sd, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
-
-        recv(new_sd,buff,sizeof(buff),0);
-        printf("%s",buff);
+        recv(new_sd, buff, sizeof(buff), 0);
+        printf("%s", buff);
 
         // stwórz nowy wątek i podaj deskryptor gniazda
         pthread_t th;
@@ -126,33 +123,32 @@ void setHttpHeader(char httpHeader[])
 
     char line[20];
     char responseData[200];
-    while (fgets(line, 20, htmlData) != 0) {
+    while (fgets(line, 20, htmlData) != 0)
+    {
         strcat(responseData, line);
     }
     // char httpHeader[8000] = "HTTP/1.1 200 OK\r\n\n";
     strcat(httpHeader, responseData);
 }
 
-
-void readFile(char* path, char result[])
+void readFile(char *path, char result[])
 {
-    FILE *fp; 
-    char con[20]; 
+    FILE *fp;
+    char con[20];
 
-    fp = fopen(path,"r");
+    fp = fopen(path, "r");
     if (!fp)
     {
         perror("file error : ");
         exit(EXIT_FAILURE);
     }
 
-    while (fgets(con,20, fp)!=NULL)
+    while (fgets(con, 20, fp) != NULL)
     {
-        strcat(result,con);
+        strcat(result, con);
     }
 
     fclose(fp);
-
 }
 
 void *handleConnection(void *arg)
@@ -169,52 +165,58 @@ void *handleConnection(void *arg)
         exit(EXIT_FAILURE);
     }
 
-    //char* methodFind = strstr(buff,"GET");
-    
+    // char* methodFind = strstr(buff,"GET");
 
     if (1)
     {
-        char httpResponse[800] = {0};
+        char httpResponse[8192] = "";
+
         
-        char readHTML[300] = {0};
-        //setHttpHeader(httpHeader);
 
-        char httpHeader[] = 
-        "HTTP /1.1 200 OK\n"
-        "Server: 127.0.0.1\n"
-        "Content-Length: 40\n"
-        "Content-Type: text/html\n"
-        "\n";
-
-        // // char httpHeader[100] = {0};
-        // // sprintf(httpHeader,"HTTP/1.1 200 OK\n\rServer: 127.0.0.1\n\rContent-Type: text/html\n\rTransfer-Encoding: chunked\n\r\n\r");
-
-         readFile("index.html",readHTML);
+        // char httpHeader[100] = {0};
+        //
+        // sprintf(httpHeader,"HTTP/1.1 200 OK\r\nServer: 127.0.0.1\r\nContent-Length: %d\r\nContent-Type: text/html; charset=utf-8\r\n",(int)strlen(readHTML));
         // char ch[3] = {0};
         // sprintf(ch,"%d",strlen(readHTML));
         // sprintf(httpHeader,"Content-Length: %s\n\r\n\r",ch);
 
+        char httpResponse_temp[8192] = "";
+        char httpHeader_template[] =
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Length: %d\r\n"
+            "Content-Type: text/html; charset=iso-8859-1\r\n"
+            "\r\n";
+        char httpBody_temp[8192 - 512] = "";
 
-        strcat(httpResponse,httpHeader);
-        strcat(httpResponse,readHTML);
-        strcat(httpResponse,"\n");
+        readFile("index.html", httpBody_temp);
 
-        char* dummyResponse=
-        "HTTP/1.1 200 OK\n"
-        "Server: 127.0.0.1\n"
-        "Content-Type: text/html\n"
-        "\n"
-        "<!DOCTYPE html>\n"
-        "<html><body>\n"
-        "<img src=\"../bin/img/mars-top.gif\"></img><br />\n"
-        "<img src=\"../bin/img/mars2.jpg\"></img><br />\n"
-        "<img src=\"../bin/img/pklogo.gif\"></img><br />\n"
-        "</body></html> \n";
+        strcat(httpResponse_temp, httpHeader_template);
+        strcat(httpResponse_temp, httpBody_temp);
+        sprintf(httpResponse, httpResponse_temp, (int)strlen(httpBody_temp));
 
-        printf("\n\nrespons:\n%s",httpResponse);
+
+        //debug
+        //writeToFile("text.html",httpResponse);
 
         send(socketDescritpor, httpResponse, strlen(httpResponse), 0);
     }
 
     return 0;
+}
+
+void writeToFile(char path[],char text[])
+{
+    FILE *fileAddress;
+    fileAddress = fopen(path, "w");
+
+    if (fileAddress != NULL)
+    {
+        // Let us use our fputs
+        fputs(text, fileAddress);
+        fclose(fileAddress);
+    }
+    else
+    {
+        printf("\n Unable to Create or Open the Sample.txt File");
+    }
 }
