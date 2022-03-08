@@ -26,14 +26,12 @@
 
 void *handleConnection(void *arg);
 void setHttpHeader(char httpHeader[]);
+void readFile(char* path,char result[]);
 
 int main(int argc, char **argv)
 {
 
     int main_sd;                // Deskryptor gniazda glownego.
-    int client_sd[MAX_CLIENTS]; // Deksryptory klientow.
-    int retval;
-    int max_sd; // Maks. deskryptor (potrzebne funkcji select)
 
     /* Gniazdowe struktury adresowe (dla klienta i serwera): */
     struct sockaddr_in client_addr, server_addr;
@@ -44,11 +42,6 @@ int main(int argc, char **argv)
     /* Bufor wykorzystywany przez recvfrom() i sendto(): */
     char buff[BUFF_SIZE];
 
-    /* Bufor dla adresu IP klienta w postaci kropkowo-dziesietnej: */
-    char addr_buff[256];
-
-    // zbior deskryptorow uzywany przez select
-    fd_set descriptors_set;
 
     if (argc != 2)
     {
@@ -66,11 +59,7 @@ int main(int argc, char **argv)
 
     /* Wyzerowanie struktury adresowej serwera: */
     memset(&server_addr, 0, sizeof(server_addr));
-    // inicjalizacja listy klientow (0 = brak clienta)
-    for (int i = 0; i < MAX_CLIENTS; i++)
-    {
-        client_sd[i] = 0;
-    }
+
 
     /* Domena komunikacyjna (rodzina protokolow): */
     server_addr.sin_family = AF_INET;
@@ -135,13 +124,35 @@ void setHttpHeader(char httpHeader[])
     // File object to return
     FILE *htmlData = fopen("index.html", "r");
 
-    char line[100];
-    char responseData[8000];
-    while (fgets(line, 100, htmlData) != 0) {
+    char line[20];
+    char responseData[200];
+    while (fgets(line, 20, htmlData) != 0) {
         strcat(responseData, line);
     }
     // char httpHeader[8000] = "HTTP/1.1 200 OK\r\n\n";
     strcat(httpHeader, responseData);
+}
+
+
+void readFile(char* path, char result[])
+{
+    FILE *fp; 
+    char con[20]; 
+
+    fp = fopen(path,"r");
+    if (!fp)
+    {
+        perror("file error : ");
+        exit(EXIT_FAILURE);
+    }
+
+    while (fgets(con,20, fp)!=NULL)
+    {
+        strcat(result,con);
+    }
+
+    fclose(fp);
+
 }
 
 void *handleConnection(void *arg)
@@ -149,12 +160,6 @@ void *handleConnection(void *arg)
     int socketDescritpor = *((int *)arg);
 
     char buff[BUFF_SIZE];
-    int retval;
-
-    struct sockaddr_in client_addr;
-    socklen_t client_addr_len;
-
-    char *expectedRequest;
 
     printf("connection... new socket : %d \n", socketDescritpor);
 
@@ -164,47 +169,52 @@ void *handleConnection(void *arg)
         exit(EXIT_FAILURE);
     }
 
-
-    char* methodFind = strstr(buff,"GET");
+    //char* methodFind = strstr(buff,"GET");
     
 
     if (1)
     {
-        FILE *htmlData = fopen("index.html", "r");
+        char httpResponse[800] = {0};
+        
+        char readHTML[300] = {0};
+        //setHttpHeader(httpHeader);
 
-        printf("    ----------         HERE     --------------    \n");
-        char line[100];
-        char responseData[8000];
-        while (fgets(line, 100, htmlData) != 0) 
-        {
-            strcat(responseData, line);
-        }   
+        char httpHeader[] = 
+        "HTTP /1.1 200 OK\n"
+        "Server: 127.0.0.1\n"
+        "Content-Length: 40\n"
+        "Content-Type: text/html\n"
+        "\n";
 
-        char pszRespond[1000]= {0};
-        char conntect_length[5];
+        // // char httpHeader[100] = {0};
+        // // sprintf(httpHeader,"HTTP/1.1 200 OK\n\rServer: 127.0.0.1\n\rContent-Type: text/html\n\rTransfer-Encoding: chunked\n\r\n\r");
 
-        sprintf(conntect_length, "%d", strlen(responseData));
+         readFile("index.html",readHTML);
+        // char ch[3] = {0};
+        // sprintf(ch,"%d",strlen(readHTML));
+        // sprintf(httpHeader,"Content-Length: %s\n\r\n\r",ch);
 
-        char pszHostAddress[]="127.0.0.1";
-        sprintf(pszRespond, "HTTP/1.1 200 OK\n\rServer: 127.0.0.1\n\rContent-Type: text/html\n\r\n\r%s", responseData);
 
-        printf("respond header:\n%s",pszRespond);
+        strcat(httpResponse,httpHeader);
+        strcat(httpResponse,readHTML);
+        strcat(httpResponse,"\n");
 
         char* dummyResponse=
         "HTTP/1.1 200 OK\n"
         "Server: 127.0.0.1\n"
         "Content-Type: text/html\n"
         "\n"
+        "<!DOCTYPE html>\n"
         "<html><body>\n"
         "<img src=\"../bin/img/mars-top.gif\"></img><br />\n"
         "<img src=\"../bin/img/mars2.jpg\"></img><br />\n"
         "<img src=\"../bin/img/pklogo.gif\"></img><br />\n"
         "</body></html> \n";
 
-        printf("\n\nrespond header2:\n%s",dummyResponse);
+        printf("\n\nrespons:\n%s",httpResponse);
 
-        send(socketDescritpor, dummyResponse, strlen(dummyResponse), 0);
+        send(socketDescritpor, httpResponse, strlen(httpResponse), 0);
     }
 
+    return 0;
 }
-
