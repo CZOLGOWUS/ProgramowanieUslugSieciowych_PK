@@ -28,6 +28,13 @@ void *handleConnection(void *arg);
 void setHttpHeader(char httpHeader[]);
 void readFile(char *path, char result[]);
 void writeToFile(char path[],char text[]);
+
+struct request_package
+{
+    int socket_desc;
+    char request[256];
+};
+
 int main(int argc, char **argv)
 {
 
@@ -157,7 +164,7 @@ void *handleConnection(void *arg)
 
     char buff[BUFF_SIZE];
 
-    printf("connection... new socket : %d \n", socketDescritpor);
+    printf("connectting... new socket : %d \n", socketDescritpor);
 
     if (recv(socketDescritpor, buff, sizeof(buff), 0) == -1)
     {
@@ -165,20 +172,12 @@ void *handleConnection(void *arg)
         exit(EXIT_FAILURE);
     }
 
-    // char* methodFind = strstr(buff,"GET");
+    char* methodFind = strstr(buff,"GET");
+    printf("\n--------METHOD :%s",buff);
 
-    if (1)
+    if (methodFind != NULL)
     {
         char httpResponse[8192] = "";
-
-        
-
-        // char httpHeader[100] = {0};
-        //
-        // sprintf(httpHeader,"HTTP/1.1 200 OK\r\nServer: 127.0.0.1\r\nContent-Length: %d\r\nContent-Type: text/html; charset=utf-8\r\n",(int)strlen(readHTML));
-        // char ch[3] = {0};
-        // sprintf(ch,"%d",strlen(readHTML));
-        // sprintf(httpHeader,"Content-Length: %s\n\r\n\r",ch);
 
         char httpResponse_temp[8192] = "";
         char httpHeader_template[] =
@@ -196,7 +195,9 @@ void *handleConnection(void *arg)
 
 
         //debug
-        //writeToFile("text.html",httpResponse);
+        /*
+        writeToFile("text.html",httpResponse);
+        */      
 
         send(socketDescritpor, httpResponse, strlen(httpResponse), 0);
     }
