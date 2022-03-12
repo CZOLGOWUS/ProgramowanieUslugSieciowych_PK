@@ -96,7 +96,7 @@ int main(int argc, char** argv) {
 
         printCurrentTime();
         printf(
-            "TCP connection accepted from %s:%d\n",
+            "TCP connection accepted from %s port %d\n",
             inet_ntop(AF_INET6, &client_addr.sin6_addr, addr_buff, sizeof(addr_buff)),
             ntohs(client_addr.sin6_port)
         );
@@ -104,12 +104,13 @@ int main(int argc, char** argv) {
         struct in6_addr *in6_client_addr;
         in6_client_addr = &client_addr.sin6_addr;
 
-        if(IN6_IS_ADDR_V4MAPPED(in6_client_addr))
-            printf("This addres is mapped-IPv4 IPv6 addres");
+        if(IN6_IS_ADDR_V4MAPPED(&in6_client_addr))
+            printf("This addres is mapped-IPv4 IPv6 addres\n");
         else
-            printf("This addres is pure IPv6 addres");
+            printf("This addres is pure IPv6 addres\n");
         
         // Wyslanie odpowiedzi:
+        printCurrentTime();
         printf("Sending message...\n");
 
         retval = sendto(

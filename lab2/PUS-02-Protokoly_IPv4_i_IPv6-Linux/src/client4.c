@@ -13,18 +13,18 @@
 
 int main(int argc, char** argv) {
 
-    int             sockfd;                 /* Desktryptor gniazda. */
-    int             retval;                 /* Wartosc zwracana przez funkcje. */
-    struct          sockaddr_in remote_addr;/* Gniazdowa struktura adresowa. */
-    socklen_t       addr_len;               /* Rozmiar struktury w bajtach. */
-    char            buff[256];              /* Bufor dla funkcji read(). */
+    int sockfd;
+    int retval;                 
+    struct sockaddr_in remote_addr;
+    socklen_t addr_len;
+    char buff[256];
 
     if (argc != 3) {
         fprintf(stderr, "Invocation: %s <IPv4 ADDRESS> <PORT>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
-    /* Utworzenie gniazda dla protokolu TCP: */
+    // Utworzenie gniazda dla protokolu TCP:
     sockfd = socket(PF_INET, SOCK_STREAM, 0);
     if (sockfd == -1) {
         perror("socket()");
@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
     remote_addr.sin_port = htons(atoi(argv[2]));
     addr_len = sizeof(remote_addr);
 
-    // Wyslanie poloczenia 
+    // Rozpoczencie poloczenia: 
     if (connect(sockfd, (const struct sockaddr*) &remote_addr, addr_len) == -1) {
         perror("connect()");
         exit(EXIT_FAILURE);
