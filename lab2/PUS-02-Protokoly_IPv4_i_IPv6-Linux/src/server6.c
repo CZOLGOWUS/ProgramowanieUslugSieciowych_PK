@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
     }
 
     // Utworzenie gniazda dla protokolu TCP:    
-    server_sd = socket(PF_INET, SOCK_STREAM, 0);
+    server_sd = socket(PF_INET6, SOCK_STREAM, 0);
     if (server_sd == -1) {
         perror("socket()");
         exit(EXIT_FAILURE);
@@ -65,10 +65,10 @@ int main(int argc, char** argv) {
 
     // Tworzenie struktury adresowej serwera:
     memset(&server_addr, 0, sizeof(server_addr));      
-    server_addr.sin6_family = AF_INET;
+    server_addr.sin6_family = AF_INET6;
     server_addr.sin6_addr = in6addr_any;
     server_addr.sin6_port = htons(atoi(argv[1]));
-    server_addr_len = sizeof(server_addr);
+    server_addr_len = sizeof(struct sockaddr_in6);
 
     // Przygotowanie gniazda servera
     if (bind(server_sd, (struct sockaddr*) &server_addr, server_addr_len) == -1) {
@@ -98,13 +98,13 @@ int main(int argc, char** argv) {
         printf(
             "TCP connection accepted from %s port %d\n",
             inet_ntop(AF_INET6, &client_addr.sin6_addr, addr_buff, sizeof(addr_buff)),
-            ntohs(client_addr.sin6_port)
+            ntohs(server_addr.sin6_port)
         );
 
-        struct in6_addr *in6_client_addr;
-        in6_client_addr = &client_addr.sin6_addr;
+        //struct in6_addr *in6_client_addr;
+        //in6_client_addr = &client_addr.sin6_addr;
 
-        if(IN6_IS_ADDR_V4MAPPED(&in6_client_addr))
+        if(IN6_IS_ADDR_V4MAPPED(&client_addr.sin6_addr))
             printf("This addres is mapped-IPv4 IPv6 addres\n");
         else
             printf("This addres is pure IPv6 addres\n");
