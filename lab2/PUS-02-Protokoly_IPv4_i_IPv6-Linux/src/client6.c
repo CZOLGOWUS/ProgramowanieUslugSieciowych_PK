@@ -30,8 +30,6 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    host = gethostbyname(argv[1]);
-
     // Utworzenie gniazda dla protokolu TCP:
     sockfd = socket(PF_INET6, SOCK_STREAM, 0);
     if (sockfd == -1)
