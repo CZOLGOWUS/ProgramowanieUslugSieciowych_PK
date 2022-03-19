@@ -51,7 +51,8 @@ int main(int argc, char** argv) {
         if (retval == 0) {
             fprintf(stderr, "inet_pton(): invalid network address!\n");
             exit(EXIT_FAILURE);
-        } else if (retval == -1) {
+        }
+        else if (retval == -1) {
             perror("inet_pton()");
             exit(EXIT_FAILURE);
         }
@@ -78,7 +79,10 @@ int main(int argc, char** argv) {
             perror("inet_pton()");
             exit(EXIT_FAILURE);
         }
+        ipv6_addr.sin6_port = htons(atoi(argv[2]));
         addr_len = sizeof(ipv6_addr);
+        
+    // dodanie interfejsu do struktury
 
         memcpy (&universal_server_addr_storage, &ipv6_addr, addr_len);
     }
@@ -112,14 +116,11 @@ int main(int argc, char** argv) {
         NI_NUMERICHOST
     );
 
-
-
     printf(
         "Host IP: %s\nPort: %s\n",
         host_buff,
         serv_buff
     );
-
 
     // Odebranie danych:
     memset(buff, 0, 256);
