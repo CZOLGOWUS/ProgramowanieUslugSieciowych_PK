@@ -23,6 +23,7 @@ int main(int argc, char** argv) {
     struct sockaddr_storage universal_server_addr_storage;
     struct addrinfo* universal_addr_info;
     socklen_t addr_len;
+    socklen_t storage_size;
     char buff[256];
     char serv_buff[NI_MAXSERV];
     char host_buff[NI_MAXHOST];
@@ -57,7 +58,7 @@ int main(int argc, char** argv) {
         ipv4_addr.sin_port = htons(atoi(argv[2]));
         addr_len = sizeof(ipv4_addr);
 
-        memcpy (&universal_server_addr_storage, &ipv4_addr, sizeof (ipv4_addr));
+        memcpy (&universal_server_addr_storage, &ipv4_addr, addr_len);
     }
     else if(universal_addr_info->ai_family == AF_INET6)
     {
@@ -77,8 +78,9 @@ int main(int argc, char** argv) {
             perror("inet_pton()");
             exit(EXIT_FAILURE);
         }
+        addr_len = sizeof(ipv6_addr);
 
-        memcpy (&universal_server_addr_storage, &ipv6_addr, sizeof (ipv6_addr));
+        memcpy (&universal_server_addr_storage, &ipv6_addr, addr_len);
     }
     else
     {
@@ -102,7 +104,6 @@ int main(int argc, char** argv) {
     //Wypisanie danych
     memset(serv_buff, 0, NI_MAXSERV);
     memset(host_buff, 0, NI_MAXHOST);
-    socklen_t storage_size;
     getsockname(sockfd, (struct sockaddr*)&universal_server_addr_storage, &storage_size);
     getnameinfo(
         (struct sockaddr*)&universal_server_addr_storage, storage_size,
