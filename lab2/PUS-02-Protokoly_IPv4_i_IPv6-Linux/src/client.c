@@ -13,20 +13,19 @@
 #include <string.h>
 #include <errno.h>
 
-
-
+#define NI_MAXHOST      1025
+#define NI_MAXSERV      32
 
 int main(int argc, char** argv) {
 
     int sockfd;
     int retval;                 
-    struct sockaddr universal_server_addr;
     struct sockaddr_storage universal_server_addr_storage;
     struct addrinfo* universal_addr_info;
     socklen_t addr_len;
     char buff[256];
-    char serv_buff[256];
-    char host_buff[256];
+    char serv_buff[NI_MAXSERV];
+    char host_buff[NI_MAXHOST];
 
     if (argc != 3) {
         fprintf(stderr, "Invocation: %s <IPv4 or IPv6 ADDRESS> <PORT>\n", argv[0]);
@@ -34,7 +33,7 @@ int main(int argc, char** argv) {
     }
 
     // Zidentyfikowanie rodzaju adresu podanego przez uzytkownika
-    if(getaddrinfo(argv[1], NULL, NULL, &universal_addr_info) != 0)
+    if(getaddrinfo(argv[1], argv[2], NULL, &universal_addr_info) != 0)
     {
         perror("getaddrinfo()");
         exit(EXIT_FAILURE);
@@ -101,32 +100,33 @@ int main(int argc, char** argv) {
     }
 
     //Wypisanie danych
-    memset(serv_buff, 0, 256);
-    memset(host_buff, 0, 256);
+    memset(serv_buff, 0, NI_MAXSERV);
+    memset(host_buff, 0, NI_MAXHOST);
     socklen_t storage_size;
     getsockname(sockfd, (struct sockaddr*)&universal_server_addr_storage, &storage_size);
     getnameinfo(
         (struct sockaddr*)&universal_server_addr_storage, storage_size,
-        host_buff, 256,
-        serv_buff, 256,
-        NI_NUMERICHOST|NI_NUMERICSERV
+        host_buff, NI_MAXHOST,
+        serv_buff, NI_MAXSERV,
+        NI_NUMERICHOST
     );
 
+
+
     printf(
-        "Host IP: %s\nServer IP: %s\n",
+        "Host IP: %s\nPort: %s\n",
         host_buff,
         serv_buff
     );
+
 
     // Odebranie danych:
     memset(buff, 0, 256);
     retval = read(sockfd, buff, sizeof(buff));
     printf("Received server response: %s\n", buff);
 
+    printf("Terminating connecion and closing application.\n");
     // Zamkniecie clienta:
-    printf("Closing socket (sending FIN to server)...\n");
     close(sockfd);
-    printf("Terminating application. After receiving FIN from server, "
-            "TCP connection will go into TIME_WAIT state.\n");
     exit(EXIT_SUCCESS);
 }
