@@ -46,7 +46,8 @@ int main(int argc, char** argv)
     socklen_t opt_len = sizeof(struct sctp_status);
 
 
-    char                    buff[BUFF_SIZE] = "initial";
+	char buff_to_send[BUFF_SIZE] = "CLIENT data";
+	char buff_to_rcv[BUFF_SIZE] = "";
 	unsigned short stream_num = 0;
 	
 
@@ -102,14 +103,14 @@ int main(int argc, char** argv)
 
     for (;;) 
 	{
-		retval = sctp_sendmsg(sockfd,(void*)buff, BUFF_SIZE,result->ai_addr, result->ai_addrlen,0,0,stream_num,10,0 );
+		retval = sctp_sendmsg(sockfd,(void*)buff_to_send, BUFF_SIZE,result->ai_addr, result->ai_addrlen,0,0,stream_num,10,0 );
 		if(retval == -1)
 		{
 			perror("sctp_sendmsg()");
             exit(EXIT_FAILURE);
 		}
 
-		bytes = sctp_recvmsg(sockfd, buff, sizeof(buff), result->ai_addr, &(result->ai_addrlen) , &snd_info, NULL);
+		bytes = sctp_recvmsg(sockfd, buff_to_rcv, BUFF_SIZE, result->ai_addr, &(result->ai_addrlen) , &snd_info, NULL);
 		if(bytes == -1)
 		{
 			perror("sctp_recvmsg()");
@@ -117,9 +118,9 @@ int main(int argc, char** argv)
 		}
 
 		print_client_info(&snd_info);
-		printf("received msg = \'%s\'\n",buff);
+		printf("received msg = \'%s\'\n",buff_to_rcv);
 
-		memset(buff,0,BUFF_SIZE);
+		memset(buff_to_rcv,0,BUFF_SIZE);
 
     }
 

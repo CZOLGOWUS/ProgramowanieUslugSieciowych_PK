@@ -41,7 +41,8 @@ int main(int argc, char** argv)
 	struct sctp_initmsg init_msg;
 	struct sctp_sndrcvinfo send_receive_info;
 
-	char buff[BUFF_SIZE] = "Sample Data from server";
+	char buff_to_send[BUFF_SIZE] = "Sample Data from server";
+	char buff_to_rcv[BUFF_SIZE] = "";
 	
     if (argc != 3) 
 	{
@@ -107,7 +108,7 @@ int main(int argc, char** argv)
             ++to_send_stream_id;
         }
 
-		bytes = sctp_recvmsg(listenfd, buff, sizeof(buff), &dest_addr, &dest_addr_len, &send_receive_info, NULL);
+		bytes = sctp_recvmsg(listenfd, buff_to_rcv, BUFF_SIZE, &dest_addr, &dest_addr_len, &send_receive_info, NULL);
         if (bytes == -1) 
 		{
             perror("recv()");
@@ -115,16 +116,16 @@ int main(int argc, char** argv)
         }
 
         print_server_info_recv(current_stream_id,&send_receive_info);
-		printf("received msg = \'%s\'\n",buff);
+		printf("received msg = \'%s\'\n",buff_to_rcv);
 
-		retval = sctp_sendmsg(listenfd, (void*)buff, BUFF_SIZE, &dest_addr, dest_addr_len,0,0,current_stream_id,10,0);
+		retval = sctp_sendmsg(listenfd, (void*)buff_to_send, BUFF_SIZE, &dest_addr, dest_addr_len,0,0,current_stream_id,10,0);
 		if(retval == -1)
 		{
 			perror("sctp_sendmsg()");
 			exit(EXIT_FAILURE);
 		}
 
-		memset(buff,0,BUFF_SIZE);
+		memset(buff_to_rcv,0,BUFF_SIZE);
 
 	}
 
