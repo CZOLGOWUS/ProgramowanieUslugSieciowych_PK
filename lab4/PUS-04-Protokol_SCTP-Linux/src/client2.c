@@ -19,11 +19,9 @@ int main(int argc, char** argv) {
     struct addrinfo hints, *result;
     char                    buff[BUFF_SIZE];
 
-    // unsigned char scpt_options[0] = {
-    // };
-
     struct sctp_initmsg sctp_options;
     struct sctp_status sctp_sts;
+    socklen_t sctp_sts_len =  sizeof(struct sctp_status);
 
     if (argc != 3) {
         fprintf(stderr, "Invocation: %s <IP ADDRESS> <PORT NUMBER>\n", argv[0]);
@@ -71,7 +69,11 @@ int main(int argc, char** argv) {
 
     freeaddrinfo(result);
 
-    getsockopt(sockfd, IPPROTO_SCTP, SCTP_STATUS, &sctp_sts, NULL);
+    retval = getsockopt(sockfd, IPPROTO_SCTP, SCTP_STATUS, &sctp_sts, &sctp_sts_len);
+    if (retval == -1) {
+        fprintf(stderr, "getsockopt()\n");
+        exit(EXIT_FAILURE);
+    }
     printf("ID: %d\n",sctp_sts.sstat_assoc_id);
     printf("Association state: %d\n",sctp_sts.sstat_state);
     printf("Output sterams: %d\n",sctp_sts.sstat_outstrms);

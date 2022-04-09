@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
     //sctp_options.sinit_max_init_timeo = ?;
     retval = setsockopt(listenfd, IPPROTO_SCTP, SCTP_INITMSG, (void*)&sctp_options, sizeof(struct sctp_initmsg));
     if (retval != 0) {
-        fprintf(stderr, "setsockopt()\n");
+        fprintf(stderr, "setsockopt() [regular options]\n");
         exit(EXIT_FAILURE);
     }
 
@@ -73,7 +73,6 @@ int main(int argc, char** argv) {
         time_t current_time = time(NULL);
         struct tm* curr_tm = localtime(&current_time);
         strftime(buffer, BUFF_SIZE, "%x", curr_tm);
-        printf("DATE SENT: %s\n",buffer);
 
         retval = sctp_sendmsg(acceptedfd,(void*)buffer,BUFF_SIZE,NULL,0,0,0,0,1000,0);
         if(retval==-1)
@@ -83,9 +82,9 @@ int main(int argc, char** argv) {
             perror("sctp_sendmsg()");
             exit(EXIT_FAILURE);
         }
+        printf("DATE SENT: %s\n",buffer);
 
         strftime(buffer, BUFF_SIZE, "%X", curr_tm);
-        printf("TIME SENT: %s\n",buffer);
 
         retval = sctp_sendmsg(acceptedfd,(void*)buffer,BUFF_SIZE,NULL,0,0,0,1,1000,0);
         if(retval==-1)
@@ -95,6 +94,7 @@ int main(int argc, char** argv) {
             perror("sctp_sendmsg()");
             exit(EXIT_FAILURE);
         }
+        printf("TIME SENT: %s\n",buffer);
     }
 
 }
