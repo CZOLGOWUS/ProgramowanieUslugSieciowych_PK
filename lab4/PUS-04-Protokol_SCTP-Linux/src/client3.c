@@ -19,10 +19,10 @@
 typedef struct sctp_sndrcvinfo SndInfo;
 void print_client_info( SndInfo* info)
 {
-	printf("Stream = %d\n",info->sinfo_stream);
-	printf("Id = %d\n",info->sinfo_assoc_id);
-	printf("SSN = %d\n",info->sinfo_ssn);
-	printf("TSN = %d\n",info->sinfo_tsn);
+	printf("Stream = %u\n",info->sinfo_stream);
+	printf("Id = %u\n",info->sinfo_assoc_id);
+	printf("SSN = %u\n",info->sinfo_ssn);
+	printf("TSN = %u\n",info->sinfo_tsn);
 }
 
 
@@ -45,6 +45,7 @@ int main(int argc, char** argv)
     socklen_t from_len = sizeof(from_addr);
     socklen_t opt_len = sizeof(struct sctp_status);
 
+    struct sctp_event_subscribe events_subscr;
 
 	char buff_to_send[BUFF_SIZE] = "CLIENT data";
 	char buff_to_rcv[BUFF_SIZE] = "";
@@ -84,7 +85,8 @@ int main(int argc, char** argv)
         exit(EXIT_FAILURE);
     }
 
-
+    memset(&events_subscr, 0, sizeof(events_subscr));
+    events_subscr.sctp_data_io_event = 1;
 
 	memset(&init_msg, 0, sizeof(struct sctp_initmsg));
 
@@ -92,7 +94,9 @@ int main(int argc, char** argv)
     init_msg.sinit_num_ostreams = OUT_STREAMS;
     init_msg.sinit_max_attempts = ATTEMPTS;
 
-	if ( (retval = setsockopt(sockfd, IPPROTO_SCTP, SCTP_INITMSG, &init_msg, sizeof(struct sctp_initmsg))) == -1) 
+	if ( (retval = setsockopt(sockfd, IPPROTO_SCTP, SCTP_INITMSG, &init_msg, sizeof(struct sctp_initmsg))) == -1 ||
+            setsockopt(sockfd, IPPROTO_SCTP, SCTP_EVENTS, &events_subscr, sizeof(struct sctp_event_subscribe))
+            ) 
 	{
 		perror("setsockopt()");
 		exit(EXIT_FAILURE);

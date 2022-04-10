@@ -22,8 +22,8 @@ void print_server_info_recv(int stream_id, SndInfo* info)
 {
 	printf("Stream = %d\n",stream_id);
 	printf("Id = %d\n",info->sinfo_assoc_id);
-	printf("SSN = %d\n",info->sinfo_ssn);
-	printf("TSN = %d\n",info->sinfo_tsn);
+	printf("SSN = %u\n",info->sinfo_ssn);
+	printf("TSN = %u\n",info->sinfo_tsn);
 }
 
 int main(int argc, char** argv)
