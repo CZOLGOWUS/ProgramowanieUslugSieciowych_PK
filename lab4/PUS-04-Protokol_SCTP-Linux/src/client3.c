@@ -77,7 +77,7 @@ int main(int argc, char** argv)
         exit(EXIT_FAILURE);
     }
 
-    sockfd = socket(result->ai_family, result->ai_socktype, IPPROTO_SCTP);
+    sockfd = socket(result->ai_family, SOCK_STREAM, IPPROTO_SCTP);
     if (sockfd == -1) 
 	{
         perror("socket()");
@@ -110,7 +110,7 @@ int main(int argc, char** argv)
             exit(EXIT_FAILURE);
 		}
 
-		bytes = sctp_recvmsg(sockfd, buff_to_rcv, BUFF_SIZE, result->ai_addr, &(result->ai_addrlen) , &snd_info, NULL);
+		bytes = sctp_recvmsg(sockfd, buff_to_rcv, BUFF_SIZE, result->ai_addr, &(result->ai_addrlen) , &snd_info, 0);
 		if(bytes == -1)
 		{
 			perror("sctp_recvmsg()");

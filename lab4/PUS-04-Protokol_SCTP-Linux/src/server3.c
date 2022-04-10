@@ -41,6 +41,8 @@ int main(int argc, char** argv)
 	struct sctp_initmsg init_msg;
 	struct sctp_sndrcvinfo send_receive_info;
 
+    struct sctp_event_subscribe events_subscr;
+
 	char buff_to_send[BUFF_SIZE] = "Sample Data from server";
 	char buff_to_rcv[BUFF_SIZE] = "";
 	
@@ -64,6 +66,8 @@ int main(int argc, char** argv)
         exit(EXIT_FAILURE);
     }
 
+    memset(&events_subscr, 0, sizeof(events_subscr));
+    events_subscr.sctp_data_io_event = 1;
 
 	memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family             =       AF_INET;
@@ -75,10 +79,11 @@ int main(int argc, char** argv)
     init_msg.sinit_num_ostreams = OUT_STREAMS;
     init_msg.sinit_max_attempts = ATTEMPTS;
 
-    retval = setsockopt(listenfd, IPPROTO_SCTP, SCTP_INITMSG, &init_msg, sizeof(struct sctp_initmsg));
-
-    if (retval == -1) 
-	{
+    
+    if ( setsockopt(listenfd, IPPROTO_SCTP, SCTP_INITMSG, &init_msg, sizeof(struct sctp_initmsg)) ||
+         setsockopt(listenfd, IPPROTO_SCTP, SCTP_EVENTS, &events_subscr, sizeof(struct sctp_event_subscribe))
+    )
+    {
         perror("setsockopt()");
         exit(EXIT_FAILURE);
     }
