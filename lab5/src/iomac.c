@@ -13,16 +13,29 @@
 
 
 
-void print_MAC_MTU(int socket_descriptor, struct ifreq* if_info)
+void print_MAC_MTU(int socket_fd, struct ifreq* if_info)
 {
-    int i;
+    int i, retval;
     u_int8_t macAddress[6];
 
+    //get current mac and MTU info
+    if ((retval = ioctl(socket_fd, SIOCGIFMTU, &if_info)) == -1) 
+    {
+        perror("ioctl() getting MTU");
+        exit(EXIT_FAILURE);
+    }
 
-    printf("MTU: %d \n", if_info -> ifr_mtu);
+    printf("MTU: %d \n", if_info->ifr_mtu);
     printf("MAC: ");
 
-    memcpy(macAddress, if_info -> ifr_hwaddr.sa_data, sizeof(macAddress));
+    //get current mac and MTU info
+    if ((retval = ioctl(socket_fd, SIOCGIFHWADDR, &if_info)) == -1) 
+    {
+        perror("ioctl() getting MAC");
+        exit(EXIT_FAILURE);
+    }
+
+    memcpy(macAddress, (*if_info).ifr_hwaddr.sa_data, sizeof(macAddress));
 
     for (i = 0; i < 6; i++)
     {
@@ -57,14 +70,7 @@ int main(int argc, char** argv) {
 
     strcpy(if_info.ifr_name, argv[1]);
 
-    //get current mac and MTU info
-    if ((retval = ioctl(sockfd, SIOCGIFHWADDR, &if_info)) == -1) 
-    {
-        perror("ioctl() first");
-        exit(EXIT_FAILURE);
-    }
-
-    printf("before chang\n");
+    printf("before change\n");
     print_MAC_MTU(sockfd, &if_info);
     printf("\n\n");
 
@@ -87,25 +93,23 @@ int main(int argc, char** argv) {
         exit(EXIT_FAILURE);
     }
 
-    if ((retval = ioctl(sockfd, SIOCSIFHWADDR, &if_info)) == -1)
+
+    if((retval = ioctl(sockfd, SIOCSIFHWADDR, &if_info)) == -1)
     {
-        perror("ioctl() second");
+        perror("ioctl() over writing MAC");
         exit(EXIT_FAILURE);
     }
 
     if_info.ifr_mtu = atoi(argv[3]);
 
-    retval = ioctl(sockfd, SIOCSIFMTU, &if_info);
-
-    
-    //get current mac and MTU info
-    if ((retval = ioctl(sockfd, SIOCGIFHWADDR, if_info)) == -1) 
+    if((retval = ioctl(sockfd, SIOCSIFMTU, &if_info)) == -1)
     {
-        perror("ioctl() third");
+        perror("ioctl() over writing MTU");
         exit(EXIT_FAILURE);
     }
+
     
-    printf("before chang\n");
+    printf("after change\n");
     print_MAC_MTU(sockfd, &if_info);
     printf("\n\n");
 
