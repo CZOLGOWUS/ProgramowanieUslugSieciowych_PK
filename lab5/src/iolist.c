@@ -76,7 +76,8 @@ int main(int argc, char** argv) {
         len += 10 * sizeof(struct ifreq);
     }
 
-    for (ptr = buff; ptr < buff + ifc.ifc_len; ptr += sizeof(struct ifreq)) {
+    for ( ptr = buff ; ptr < buff + ifc.ifc_len ; ptr += sizeof(struct ifreq) ) 
+    {
         ifreqptr = (struct ifreq *)ptr;
 
         /*
@@ -92,7 +93,8 @@ int main(int argc, char** argv) {
          */
 
         /*  Tylko IPv4: */
-        if (ifreqptr->ifr_addr.sa_family != AF_INET) {
+        if (ifreqptr->ifr_addr.sa_family != AF_INET) 
+        {
             continue;
         }
 
@@ -105,7 +107,8 @@ int main(int argc, char** argv) {
         ifreqstruct = *ifreqptr;
         /* Pobranie flag: */
         retval = ioctl(sockfd, SIOCGIFFLAGS, &ifreqstruct);
-        if (retval == -1) {
+        if (retval == -1) 
+        {
             perror("ioctl()");
             exit(EXIT_FAILURE);
         }
