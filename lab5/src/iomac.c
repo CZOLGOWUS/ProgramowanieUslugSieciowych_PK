@@ -5,11 +5,10 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
-#include <arpa/inet.h> /* inet_pton() */
+#include <net/if.h> /* struct ifconf, struct ifreq */
+#include <unistd.h>
 #include <net/if_arp.h>
-#include <netinet/in.h> /* struct sockaddr_in */
 #include <sys/ioctl.h>
-#include <net/if.h>
 
 
 
@@ -19,7 +18,7 @@ void print_MAC_MTU(int socket_fd, struct ifreq* if_info)
     u_int8_t macAddress[6];
 
     //get current mac and MTU info
-    if ((retval = ioctl(socket_fd, SIOCGIFMTU, &if_info)) == -1) 
+    if ((retval = ioctl(socket_fd, SIOCGIFMTU, if_info)) == -1) 
     {
         perror("ioctl() getting MTU");
         exit(EXIT_FAILURE);
@@ -29,13 +28,13 @@ void print_MAC_MTU(int socket_fd, struct ifreq* if_info)
     printf("MAC: ");
 
     //get current mac and MTU info
-    if ((retval = ioctl(socket_fd, SIOCGIFHWADDR, &if_info)) == -1) 
+    if ((retval = ioctl(socket_fd, SIOCGIFHWADDR, if_info)) == -1) 
     {
         perror("ioctl() getting MAC");
         exit(EXIT_FAILURE);
     }
 
-    memcpy(macAddress, (*if_info).ifr_hwaddr.sa_data, sizeof(macAddress));
+    memcpy(macAddress, if_info->ifr_hwaddr.sa_data, sizeof(macAddress));
 
     for (i = 0; i < 6; i++)
     {
@@ -57,12 +56,11 @@ int main(int argc, char** argv) {
 
     if (argc != 4) 
     {
-        fprintf(stderr, "Invocation: %s <IPv4 ADDRESS> <MAC ADDRESS> <NEW_MTU>\n", argv[0]);
+        fprintf(stderr, "Invocation: %s <IF NAME> <NEW MAC ADDRESS> <NEW MTU>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
-    sockfd = socket(PF_INET, SOCK_DGRAM, 0);
-    if (sockfd == -1) 
+    if ((sockfd = socket(PF_INET, SOCK_DGRAM, 0)) == -1) 
     {
         perror("socket()");
         exit(EXIT_FAILURE);
@@ -96,7 +94,7 @@ int main(int argc, char** argv) {
 
     if((retval = ioctl(sockfd, SIOCSIFHWADDR, &if_info)) == -1)
     {
-        perror("ioctl() over writing MAC");
+        perror("ioctl() overwriting MAC");
         exit(EXIT_FAILURE);
     }
 
