@@ -191,40 +191,49 @@ int main(int argc, char** argv) {
              );
 
     if (retval == -1) {
-        perror("revvfrom()");
+        perror("recvfrom()");
         exit(EXIT_FAILURE);
     }
 
+    fprintf(stdout, "Received message:\n");
+
     struct nlmsghdr *nh_response; // Wskaznik na naglowek Netlink odpowiedzi.
     nh_response = (struct nlmsghdr*)response;
-    printf("len: %d\n",nh_response->nlmsg_len);
-    printf("type: %x ",nh_response->nlmsg_type);
+    printf("  type: %x",nh_response->nlmsg_type);
     if(nh_response->nlmsg_type & NLMSG_ERROR)
     {
-        printf(" --> error header\n");
         struct nlmsgerr *err_info = 
             (struct nlmsgerr*) (response + NLMSG_HDRLEN);
         
-        printf("\tErr number: %d\n",err_info->error);
-        if(err_info->error==0)
+        printf(" --> NLMSG_ERROR --> err number: %d --> %s ",err_info->error,err_info->error ? "ERROR" : "ACKNOWLEDGEMENT");
+        switch (err_info->error)
         {
-            printf("\tNo error.\n");
+        case -1:
+            printf(" Not a superuser.");
+            break;
+        case -17:
+            printf(" Identical record already added.");
+            break;
+        case -99:
+            printf(" Cannot remove nonexistent record.");
+            break;
+        default:
+            break;
         }
-        else
-        {
-            printf("\tERROR!\n");
-        }
+        printf("\n");
     }
-    printf("pid: %d\n",nh_response->nlmsg_pid);
-    printf("seq: %d\n",nh_response->nlmsg_seq);
-    printf("flags: %x ",nh_response->nlmsg_flags);
+    printf("  flags: 0x%x",nh_response->nlmsg_flags);
     if(nh_response->nlmsg_flags & NLM_F_REPLACE)
     {
-        printf(" --> Operation successful!\n");
+        printf(" --> Operation of replacement successful!\n");
+    }
+    else if(nh_response->nlmsg_flags == 0)
+    {
+        printf(" --> No operation.\n");
     }
     else
     {
-        printf(" --> No operation.\n");
+        printf(" --> Other operation.\n");
     }
     
     free(response);
