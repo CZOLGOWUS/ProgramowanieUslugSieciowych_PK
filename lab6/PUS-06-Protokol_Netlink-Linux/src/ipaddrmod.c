@@ -15,6 +15,8 @@
  * Program wymaga uprawnien roota.
  */
 
+#define BUFF_SIZE 16384
+
 int main(int argc, char** argv) {
 
     int                     sockfd; /* Deskryptor gniazda. */
@@ -28,6 +30,10 @@ int main(int argc, char** argv) {
     /* Bufor dla wysylanego komunikatu: */
     void                    *request;
     int                     request_size;
+
+    /* Bufor dla odbieranego komunikatu: */
+    void                    *response;
+    int                     response_size;
 
     if (argc != 5) {
         fprintf(
@@ -105,7 +111,7 @@ int main(int argc, char** argv) {
      */
 
     nh->nlmsg_type          =       action; /* RTM_NEWADDR lub RTM_DELADDR */
-    nh->nlmsg_flags         =       NLM_F_REQUEST;
+    nh->nlmsg_flags         =       NLM_F_REQUEST | NLM_F_ACK; // oczekujemy odpowiedzi ACK
     nh->nlmsg_seq           =       1;
     nh->nlmsg_pid           =       getpid();
 
@@ -160,11 +166,68 @@ int main(int argc, char** argv) {
              );
 
     if (retval == -1) {
-        perror("send()");
+        perror("sendto()");
         exit(EXIT_FAILURE);
     }
 
     free(request);
+
+    // response_size = NLMSG_SPACE(sizeof(struct ifaddrmsg))
+    //                + 3*RTA_SPACE(sizeof(uint32_t))
+    //                + RTA_SPACE(strlen(argv[1]));
+    response_size = BUFF_SIZE;
+
+    response = malloc(response_size);
+    if (response == NULL) {
+        fprintf(stderr, "malloc() failed!\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // oczekiwanie na odpowiedz:
+
+    retval = recvfrom(
+                 sockfd, response, response_size, 0,
+                 NULL , 0
+             );
+
+    if (retval == -1) {
+        perror("revvfrom()");
+        exit(EXIT_FAILURE);
+    }
+
+    struct nlmsghdr *nh_response; // Wskaznik na naglowek Netlink odpowiedzi.
+    nh_response = (struct nlmsghdr*)response;
+    printf("len: %d\n",nh_response->nlmsg_len);
+    printf("type: %x ",nh_response->nlmsg_type);
+    if(nh_response->nlmsg_type & NLMSG_ERROR)
+    {
+        printf(" --> error header\n");
+        struct nlmsgerr *err_info = 
+            (struct nlmsgerr*) (response + NLMSG_HDRLEN);
+        
+        printf("\tErr number: %d\n",err_info->error);
+        if(err_info->error==0)
+        {
+            printf("\tNo error.\n");
+        }
+        else
+        {
+            printf("\tERROR!\n");
+        }
+    }
+    printf("pid: %d\n",nh_response->nlmsg_pid);
+    printf("seq: %d\n",nh_response->nlmsg_seq);
+    printf("flags: %x ",nh_response->nlmsg_flags);
+    if(nh_response->nlmsg_flags & NLM_F_REPLACE)
+    {
+        printf(" --> Operation successful!\n");
+    }
+    else
+    {
+        printf(" --> No operation.\n");
+    }
+    
+    free(response);
     close(sockfd);
     exit(EXIT_SUCCESS);
 }
