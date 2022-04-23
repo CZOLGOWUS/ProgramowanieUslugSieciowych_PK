@@ -19,13 +19,14 @@
 
 int main(int argc, char** argv) {
 
-    int                     sockfd; /* Deskryptor gniazda. */
-    int                     retval; /* Wartosc zwracana przez funkcje. */
-    uint32_t                addr;   /* Do przechowywania adresu IPv4. */
-    unsigned char           action; /* Typ operacji: dodanie/usuniecie adresu IP. */
-    struct sockaddr_nl      sa;     /* Struktura adresowa */
-    struct nlmsghdr         *nh;    /* Wskaznik na naglowek Netlink. */
-    struct ifaddrmsg        *ia;    /* Wskaznik na naglowek rodziny. */
+    int                     sockfd;         /* Deskryptor gniazda. */
+    int                     retval;         /* Wartosc zwracana przez funkcje. */
+    uint32_t                addr;           /* Do przechowywania adresu IPv4. */
+    unsigned char           action;         /* Typ operacji: dodanie/usuniecie adresu IP. */
+    struct sockaddr_nl      sa;             /* Struktura adresowa */
+    struct nlmsghdr         *nh;            /* Wskaznik na naglowek Netlink. */
+    struct nlmsghdr         *nh_response;   /* Wskaznik na naglowek Netlink odpowiedzi. */
+    struct ifaddrmsg        *ia;            /* Wskaznik na naglowek rodziny. */
 
     /* Bufor dla wysylanego komunikatu: */
     void                    *request;
@@ -172,9 +173,6 @@ int main(int argc, char** argv) {
 
     free(request);
 
-    // response_size = NLMSG_SPACE(sizeof(struct ifaddrmsg))
-    //                + 3*RTA_SPACE(sizeof(uint32_t))
-    //                + RTA_SPACE(strlen(argv[1]));
     response_size = BUFF_SIZE;
 
     response = malloc(response_size);
@@ -197,7 +195,6 @@ int main(int argc, char** argv) {
 
     fprintf(stdout, "Received message:\n");
 
-    struct nlmsghdr *nh_response; // Wskaznik na naglowek Netlink odpowiedzi.
     nh_response = (struct nlmsghdr*)response;
     printf("  type: %x",nh_response->nlmsg_type);
     if(nh_response->nlmsg_type & NLMSG_ERROR)
