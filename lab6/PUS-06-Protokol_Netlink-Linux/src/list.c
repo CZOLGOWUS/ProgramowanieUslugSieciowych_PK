@@ -209,8 +209,7 @@ int main(int argc, char** argv) {
         in_info.prefix          =       ia->ifa_prefixlen;
 
         /* Naglowek pierwszego atrybutu: */
-        attr = (struct rtattr*)((char*)ia
-                                + NLMSG_ALIGN(sizeof(struct ifaddrmsg)));
+        attr = (struct rtattr*)((char*)ia + NLMSG_ALIGN(sizeof(struct ifaddrmsg)));
 
         attr_len = NLMSG_PAYLOAD(nh, sizeof(struct ifaddrmsg));
 

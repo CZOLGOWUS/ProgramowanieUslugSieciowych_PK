@@ -63,11 +63,13 @@ int main(int argc, char** argv) {
     /*
      * Alokacja pamieci dla wysylanego komunikatu.
      *
-     * NLMSG_SPACE(sizeof(struct ifaddrmsg)) = rozmiar naglowka 'nlmsghdr'
-     * + opcjonalny padding + rozmiar naglowka 'ifaddrmsg' + opcjonalny padding;
+     * NLMSG_SPACE(sizeof(struct ifaddrmsg)) = 
+     *          rozmiar naglowka 'nlmsghdr' + opcjonalny padding + 
+     *          rozmiar naglowka 'ifaddrmsg' + opcjonalny padding;
      *
-     * RTA_SAPCE(sizeof(uint32_t)) = rozmiar naglowka 'rtattr' + opcjonalny padding
-     * + sizeof(uint32_t) + opcjonalny padding;
+     * RTA_SAPCE(sizeof(uint32_t)) = 
+     *          rozmiar naglowka 'rtattr' + opcjonalny padding +
+     *          sizeof(uint32_t) + opcjonalny padding;
      *
      * Podobnie RTA_SAPCE(strlen(argv[1])).
      */
