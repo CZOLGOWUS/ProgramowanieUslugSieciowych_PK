@@ -5,21 +5,22 @@
 #include <libssh2.h>
 #include "libcommon.h"
 
-#define BUF_SIZE 1024
+#define PASS_LEN 128
+#define BUF_SIZE 4096
 
-/*
- * Funkcja odpowiedzialna za uwierzytelnianie uzytkownika.
- * Zdefiniowana na koncu pliku.
- */
+/* Funkcja odpowiedzialna za uwierzytelnianie uzytkownika. */
 int authenticate_user(LIBSSH2_SESSION *session, struct connection_data *cd);
 
 int main(int argc, char **argv) {
 
     int                     err;
     int                     sockfd; /* Deskryptor gniazda */
+    char                    buf[BUF_SIZE]; /* Bufor dla odbieranych danych */
+    ssize_t                 bytes, total; /* Liczba otrzymanych bajtow */
 
-    struct connection_data  *cd;   /* Argumenty wywolania programu */
+    struct connection_data  *cd; /* Argumenty wywolania programu */
     LIBSSH2_SESSION         *session; /* Obiekt sesji SSH */
+    LIBSSH2_CHANNEL         *channel; /* Kanal komunikacyjny */
 
     /*
      * Parsowanie argumentow wywolania programu.
@@ -50,15 +51,20 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    libssh2_session_method_pref(session,LIBSSH2_METHOD_KEX,"RSA");
-
     /*
-    *  Rozpoczecie negocjacji parametrow polaczenia SSH, wymiana tajnego klucza i
-    *  uwierzytelnianie serwera SSH.
-    */
+     * Rozpoczecie negocjacji parametrow polaczenia SSH, wymiana tajnego klucza i
+     * uwierzytelnianie serwera SSH.
+     */
     err = libssh2_session_startup(session, sockfd);
     if (err < 0) {
         print_ssh_error(session, "libssh2_session_startup()");
+        exit(EXIT_FAILURE);
+    }
+
+
+    err = libssh2_session_method_pref(session,LIBSSH2_METHOD_CRYPT_CS,"password");
+    if (err < 0) {
+        print_ssh_error(session, "libssh2_session_method_pref()");
         exit(EXIT_FAILURE);
     }
 
@@ -75,6 +81,54 @@ int main(int argc, char **argv) {
     /* Uwierzytelnianie uzytkownika. Funkcja zdefiniowana na koncu tego pliku. */
     err = authenticate_user(session, cd);
     if (err < 0) {
+        exit(EXIT_FAILURE);
+    }
+
+    /* Utworzenie kanalu komunikacyjnego typu "session". */
+    channel = libssh2_channel_open_session(session);
+    if (channel == NULL) {
+        print_ssh_error(session, "linssh2_channel_open_session()");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Zdalne wywolanie polecenia systemowego/programu. */
+    err = libssh2_channel_exec(channel, "date");
+    if (err < 0) {
+        print_ssh_error(session, "libssh2_channel_exec()");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Odebranie danych: */
+    bytes = total = 0;
+    do {
+        bytes = libssh2_channel_read(channel, buf + total, BUF_SIZE - total);
+        total += bytes;
+    } while ((bytes > 0) && (total < BUF_SIZE));
+
+    if (bytes < 0) {
+        print_ssh_error(session, "libssh2_channel_read()");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Wypisanie odpowiedzi: */
+    fprintf(stdout, "Received:\n");
+    fwrite(buf, sizeof(char), total, stdout);
+    fprintf(stdout, "\n");
+
+    /* Wypisanie statusu zakonczenie zdalnego procesu. */
+    fprintf(stdout, "Exit status: %d\n", libssh2_channel_get_exit_status(channel));
+
+    /* Zamkniecie kanalu komunikacyjnego. */
+    err = libssh2_channel_close(channel);
+    if (err < 0) {
+        print_ssh_error(session, "libssh2_channel_close()");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Zwolnienie zasobow zwiazanych z kanalem komunikacyjnym. */
+    err = libssh2_channel_free(channel);
+    if (err < 0) {
+        print_ssh_error(session, "libssh2_channel_free()");
         exit(EXIT_FAILURE);
     }
 
@@ -104,11 +158,12 @@ int main(int argc, char **argv) {
 
 /*
  * Funkcja odpowiedzialna za uwierzytelnianie uzytkownika za pomoca metody
- * "none".
+ * "password".
  */
 int authenticate_user(LIBSSH2_SESSION *session, struct connection_data *cd) {
 
     char    *auth_list;
+    char    password[PASS_LEN];
 
     /* Pobranie listy metod udostepnianych przez serwer SSH. */
     auth_list = libssh2_userauth_list(session, cd->username, strlen(cd->username));
@@ -118,16 +173,37 @@ int authenticate_user(LIBSSH2_SESSION *session, struct connection_data *cd) {
          * powodzeniem:
          */
         if (libssh2_userauth_authenticated(session)) {
-            fprintf(stdout, "USERAUTH_NONE succeeded!\n");
-            return 0;
+            fprintf(stderr, "USERAUTH_NONE succeeded!\n");
+            return -1;
         } else { /* W przypadku bledu: */
             print_ssh_error(session, "libssh2_userauth_list()");
             return -1;
         }
     }
 
-    /* Wypisanie metod udostepnianych przez serwer SSH: */
-    fprintf(stdout, "Authentication list: %s\n", auth_list);
+    /* Sprawdzenie czy serwer obsluguje metode "password". */
+    if (strstr(auth_list, "rsa") == NULL) {
+        fprintf(stderr, "rsa method not supported by server.\n");
+        return -1;
+    }
 
+    for (;;) {
+
+        /* Pobranie hasla uzytkownika. */
+        if (get_password("public key code: ", password, PASS_LEN)) {
+            fprintf(stderr, "get_password() failed!\n");
+            return -1;
+        }
+
+        
+        /* Uwierzytelnianie za pomoca hasla. */
+        if (libssh2_userauth_publickey(session, cd->username, password,sizeof(password)-1,0,NULL) == 0) {
+            fprintf(stdout, "Authentication succeeded!\n");
+            memset(password, 0, PASS_LEN);
+            break;
+        }  else {
+            fprintf(stdout, "Authentication failed!\n");
+        }
+    }
     return 0;
 }
