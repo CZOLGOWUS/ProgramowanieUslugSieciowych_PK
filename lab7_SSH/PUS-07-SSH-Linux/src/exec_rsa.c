@@ -5,7 +5,7 @@
 #include <libssh2.h>
 #include "libcommon.h"
 
-#define PASS_LEN 128
+#define PASS_LEN 256
 #define BUF_SIZE 4096
 
 /* Funkcja odpowiedzialna za uwierzytelnianie uzytkownika. */
@@ -61,12 +61,13 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-
-    err = libssh2_session_method_pref(session,LIBSSH2_METHOD_CRYPT_CS,"password");
-    if (err < 0) {
+/*
+    err = libssh2_session_method_pref(session, LIBSSH2_METHOD_HOSTKEY, "password");
+    if (err < 0) 
+    {
         print_ssh_error(session, "libssh2_session_method_pref()");
         exit(EXIT_FAILURE);
-    }
+    }*/
 
     /*
      * Klucz publiczny serwera jest weryfikowany na podstawie cyfrowego odcisku
@@ -158,15 +159,18 @@ int main(int argc, char **argv) {
 
 /*
  * Funkcja odpowiedzialna za uwierzytelnianie uzytkownika za pomoca metody
- * "password".
+ * "public_key".
  */
 int authenticate_user(LIBSSH2_SESSION *session, struct connection_data *cd) {
 
     char    *auth_list;
-    char    password[PASS_LEN];
+    char    public_key[PASS_LEN] = "public.key";
+    char    private_key[PASS_LEN] = "private.key";
+    char    passphrase[PASS_LEN];
 
     /* Pobranie listy metod udostepnianych przez serwer SSH. */
     auth_list = libssh2_userauth_list(session, cd->username, strlen(cd->username));
+    printf("metody servera: %s\n",auth_list);
     if (auth_list == NULL) {
         /*
          *  Jezeli uwierzytelnianie metoda "none" zakonczylo sie
@@ -181,29 +185,33 @@ int authenticate_user(LIBSSH2_SESSION *session, struct connection_data *cd) {
         }
     }
 
-    /* Sprawdzenie czy serwer obsluguje metode "password". */
-    if (strstr(auth_list, "rsa") == NULL) {
-        fprintf(stderr, "rsa method not supported by server.\n");
+    /* Sprawdzenie czy serwer obsluguje metode "publickey". */
+    if (strstr(auth_list, "publickey") == NULL) {
+        fprintf(stderr, "publickey method not supported by server.\n");
         return -1;
     }
 
-    for (;;) {
+    for (;;) 
+    {
 
         /* Pobranie hasla uzytkownika. */
-        if (get_password("public key code: ", password, PASS_LEN)) {
+        if (get_password("Password: ", passphrase, PASS_LEN)) {
             fprintf(stderr, "get_password() failed!\n");
             return -1;
         }
 
-        
         /* Uwierzytelnianie za pomoca hasla. */
-        if (libssh2_userauth_publickey(session, cd->username, password,sizeof(password)-1,0,NULL) == 0) {
+        if (libssh2_userauth_publickey_fromfile(session, cd->username, public_key, private_key, passphrase) == 0) 
+        {
             fprintf(stdout, "Authentication succeeded!\n");
-            memset(password, 0, PASS_LEN);
+            memset(public_key, 0, PASS_LEN);
+            memset(private_key, 0, PASS_LEN);
             break;
-        }  else {
-            fprintf(stdout, "Authentication failed!\n");
+        }  else 
+        {
+            perror("Authentication failed!");
         }
+        sleep(1);
     }
     return 0;
 }
