@@ -61,14 +61,6 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-/*
-    err = libssh2_session_method_pref(session, LIBSSH2_METHOD_HOSTKEY, "password");
-    if (err < 0) 
-    {
-        print_ssh_error(session, "libssh2_session_method_pref()");
-        exit(EXIT_FAILURE);
-    }*/
-
     /*
      * Klucz publiczny serwera jest weryfikowany na podstawie cyfrowego odcisku
      * palca. Uzytkownik jest pytany, czy klucz o danym odcisku moze zostac
@@ -164,8 +156,8 @@ int main(int argc, char **argv) {
 int authenticate_user(LIBSSH2_SESSION *session, struct connection_data *cd) {
 
     char    *auth_list;
-    char    public_key[PASS_LEN] = "public.key";
-    char    private_key[PASS_LEN] = "private.key";
+    char    public_key_path[PASS_LEN] = "/home/czolg/Documents/PUS/lab7_SSH/PUS-07-SSH-Linux/bin/public.key";
+    char    private_key_path[PASS_LEN] = "/home/czolg/Documents/PUS/lab7_SSH/PUS-07-SSH-Linux/bin/private.key";
     char    passphrase[PASS_LEN];
 
     /* Pobranie listy metod udostepnianych przez serwer SSH. */
@@ -201,11 +193,11 @@ int authenticate_user(LIBSSH2_SESSION *session, struct connection_data *cd) {
         }
 
         /* Uwierzytelnianie za pomoca hasla. */
-        if (libssh2_userauth_publickey_fromfile(session, cd->username, public_key, private_key, passphrase) == 0) 
+        if (libssh2_userauth_publickey_fromfile(session, cd->username, public_key_path, private_key_path, passphrase) == 0) 
         {
             fprintf(stdout, "Authentication succeeded!\n");
-            memset(public_key, 0, PASS_LEN);
-            memset(private_key, 0, PASS_LEN);
+            memset(public_key_path, 0, PASS_LEN);
+            memset(private_key_path, 0, PASS_LEN);
             break;
         }  else 
         {
