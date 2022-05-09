@@ -156,8 +156,8 @@ int main(int argc, char **argv) {
 int authenticate_user(LIBSSH2_SESSION *session, struct connection_data *cd) {
 
     char    *auth_list;
-    char    public_key_path[PASS_LEN] = "/home/czolg/Documents/PUS/lab7_SSH/PUS-07-SSH-Linux/bin/public.key";
-    char    private_key_path[PASS_LEN] = "/home/czolg/Documents/PUS/lab7_SSH/PUS-07-SSH-Linux/bin/private.key";
+    char    public_key_path[PASS_LEN] = "public.key";
+    char    private_key_path[PASS_LEN] = "private.key";
     char    passphrase[PASS_LEN];
 
     /* Pobranie listy metod udostepnianych przez serwer SSH. */
