@@ -39,7 +39,7 @@ digest.o: $(SRCDIR)/digest.c
 	$(CC) $(CFLAGS) -c $(SRCDIR)/$(basename $@).c -o $(BINDIR)/$(basename $@).o
 
 mac: mac.o
-	$(CC) $(CFLAGS) $(BINDIR)/$@.o -lssl -o $(BINDIR)/$@
+	$(CC) $(CFLAGS) $(BINDIR)/$@.o -lssl -lcrypto -o $(BINDIR)/$@
 
 mac.o: $(SRCDIR)/mac.c
 	$(CC) $(CFLAGS) -c $(SRCDIR)/$(basename $@).c -o $(BINDIR)/$(basename $@).o

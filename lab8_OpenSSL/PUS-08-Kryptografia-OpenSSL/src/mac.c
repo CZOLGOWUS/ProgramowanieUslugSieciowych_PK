@@ -3,8 +3,14 @@
 #include <string.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
+#include <openssl/hmac.h>
 
 int main(int argc, char **argv) {
+
+      /* Klucz: */
+    unsigned char key[] = {0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,
+                           0x00,0x01,0x02,0x03,0x04,0x05
+                          };
 
     /* Wartosc zwracana przez funkcje: */
     int retval;
@@ -15,13 +21,13 @@ int main(int argc, char **argv) {
     char message[64];
 
     /* Skrot wiadomosci: */
-    unsigned char digest[EVP_MAX_MD_SIZE];
+    unsigned char result[EVP_MAX_MD_SIZE];
 
     /* Rozmiar tekstu i szyfrogramu: */
-    unsigned int message_len, digest_len;
+    unsigned int message_len, result_len;
 
     /* Kontekst: */
-    EVP_MD_CTX *ctx;
+    HMAC_CTX *ctx;
 
     const EVP_MD* md;
 
@@ -42,7 +48,7 @@ int main(int argc, char **argv) {
 
     md = EVP_get_digestbyname(argv[1]);
     if (!md) {
-        fprintf(stderr, "Unknown message digest: %s\n", argv[1]);
+        fprintf(stderr, "Unknown message result: %s\n", argv[1]);
         exit(EXIT_FAILURE);
     }
 
@@ -55,10 +61,11 @@ int main(int argc, char **argv) {
     message_len = strlen(message);
 
     /* Alokacja pamieci dla kontekstu: */
-    ctx = EVP_MD_CTX_new();
+    ctx = HMAC_CTX_new();
 
     /* Inicjalizacja kontekstu: */
-    EVP_MD_CTX_init(ctx);
+    //HMAC_CTX_init(ctx);
+    HMAC_CTX_reset(ctx); // in newer version
 
     /* Parametry funkcji skrotu: */
     fprintf(stdout, "Digest parameters:\n");
@@ -66,21 +73,21 @@ int main(int argc, char **argv) {
     fprintf(stdout, "Digest size: %d bytes\n\n", EVP_MD_size(md));
 
     /* Konfiguracja kontekstu: */
-    retval = EVP_DigestInit_ex(ctx, md, NULL);
+    retval = HMAC_Init_ex(ctx, key, sizeof(key), md, NULL);
     if (!retval) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
 
-    /* Obliczenie skrotu: */
-    retval = EVP_DigestUpdate(ctx, message, message_len);
+    /* Obliczenie kodu HMAC: */
+    retval = HMAC_Update(ctx, message, message_len);
     if (!retval) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
 
-    /*Zapisanie skrotu w buforze 'digest': */
-    retval = EVP_DigestFinal_ex(ctx, digest, &digest_len);
+    /*Zapisanie kodu HMAC w buforze 'result': */
+    retval = HMAC_Final(ctx, result, &result_len);
     if (!retval) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
@@ -90,14 +97,15 @@ int main(int argc, char **argv) {
      * Usuwa wszystkie informacje z kontekstu i zwalnia pamiec zwiazana
      * z kontekstem:
      */
-    EVP_MD_CTX_free(ctx);
+    //HMAC_CTX_cleanup(ctx);
+    HMAC_CTX_free(ctx);  //in newer version
 
     /* Usuniecie nazw funkcji skrotu z pamieci. */
     EVP_cleanup();
 
-    fprintf(stdout, "Digest (hex): ");
-    for (i = 0; i < digest_len; i++) {
-        fprintf(stdout, "%02x", digest[i]);
+    fprintf(stdout, "Result HMAC (hex): ");
+    for (i = 0; i < result_len; i++) {
+        fprintf(stdout, "%02x", result[i]);
     }
 
     fprintf(stdout, "\n");
