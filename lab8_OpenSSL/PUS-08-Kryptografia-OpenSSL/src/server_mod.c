@@ -27,24 +27,31 @@ int main(int argc, char** argv) {
     /* Bufor dla adresu IP klienta w postaci kropkowo-dziesietnej: */
     char            addr_buff[256];
 
-            /* Bufor odebrania przez UDP: */
-    char buff[256+MD5_DIGEST_SIZE];
+        /* Bufor na odebrany szyfrogram: */
+    //unsigned char ciphertext[256+MD5_DIGEST_SIZE];
+    unsigned char ciphertext[1024];
+        /* Bufor na wiadomosc z MAC: */
+    char buff[1024]; //256+MD5_DIGEST_SIZE
         /* Wiadomosc: */
     char message[256];
         /* Skrot wiadomosci: */
     char result[MD5_DIGEST_SIZE];
 
-        /* Klucz: */
-    char key[] = {0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,
+        /* Klucze: */
+    char keyA[] = {0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,
+                           0x00,0x01,0x02,0x03,0x04,0x05
+                          };
+
+    char keyB[] = {0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,
                            0x00,0x01,0x02,0x03,0x04,0x05
                           };
 
 
     /* Rozmiar tekstu i szyfrogramu: */
-    unsigned int message_len, result_len;
+    unsigned int message_len, result_len, ciphertext_len;
 
     /* Kontekst: */
-    HMAC_CTX *ctx;
+    HMAC_CTX *hmac_ctx;
 
 
     if (argc != 2) {
@@ -83,7 +90,7 @@ int main(int argc, char** argv) {
     /* Oczekiwanie na dane od klienta: */
     retval = recvfrom(
                  sockfd,
-                 buff, sizeof(buff),
+                 ciphertext, sizeof(ciphertext),
                  0,
                  (struct sockaddr*)&client_addr, &client_addr_len
              );
@@ -91,41 +98,107 @@ int main(int argc, char** argv) {
         perror("recvfrom()");
         exit(EXIT_FAILURE);
     }
+    
+    ciphertext_len = retval;
+    printf("Ciphertext_len: %d\n",ciphertext_len);
+    printf("Ciphertext:\n%s\n\n",ciphertext);
 
     fprintf(stdout, "UDP datagram received from %s:%d.\n",
         inet_ntop(AF_INET, &client_addr.sin_addr, addr_buff, sizeof(addr_buff)),
         ntohs(client_addr.sin_port)
         );
 
-    strcpy(message, buff+MD5_DIGEST_SIZE);
-    message_len = strlen(message);
+
+
+    ////////////////////////////////// cipher
+
+        /* Kontekst: */
+    EVP_CIPHER_CTX *cipher_ctx;
+
+    const EVP_CIPHER* cipher;
+
+    /* Zaladowanie tekstowych opisow bledow: */
+    ERR_load_crypto_strings();
+
+    /*
+     * Utworzenie kontekstu pod deszyfrowanie
+     */
+    cipher_ctx = EVP_CIPHER_CTX_new();
+
+    /* Konfiguracja kontekstu dla odszyfrowywania: */
+    cipher = EVP_aes_128_ecb();
+    fprintf(stdout, "Decrypting with ECB...\n\n");
+    retval = EVP_DecryptInit_ex(cipher_ctx, cipher, NULL, keyB, NULL);
+    if (!retval) {
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    /*
+     * Domyslnie OpenSSL stosuje padding. 0 - padding nie bedzie stosowany.
+     * Funkcja moze byc wywolana tylko po konfiguracji kontekstu
+     * dla szyfrowania/deszyfrowania (odzielnie dla kazdej operacji).
+     */
+    EVP_CIPHER_CTX_set_padding(cipher_ctx, 1);
+
+    int buff_len;
+    /* Odszyfrowywanie: */
+    retval = EVP_DecryptUpdate(cipher_ctx, (unsigned char*)buff, &buff_len,
+                               ciphertext, ciphertext_len);
+
+    if (!retval) {
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    /*
+     * Prosze zwrocic uwage, ze rozmiar bufora 'plaintext' musi byc co najmniej o
+     * rozmiar bloku wiekszy od dlugosci szyfrogramu (na padding):
+     */
+    int tmp;
+    retval = EVP_DecryptFinal_ex(cipher_ctx, (unsigned char*)buff + buff_len, &tmp);
+    if (!retval) {
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    buff_len += tmp;
+    printf("updated buff_len: %d\n",buff_len);
+    buff[buff_len] = '\0';
+    fprintf(stdout, "Plaintext:\n%s\n", buff);
+
+    EVP_CIPHER_CTX_free(cipher_ctx);
+    /* Zwolnienie tekstowych opisow bledow: */
+    ERR_free_strings();
 
     ////////////////////////////////// HMAC
     
+    strcpy(message, buff+MD5_DIGEST_SIZE);
+    message_len = strlen(message);
 
     /* Alokacja pamieci dla kontekstu: */
-    ctx = HMAC_CTX_new();
+    hmac_ctx = HMAC_CTX_new();
 
     /* Inicjalizacja kontekstu: */
-    //HMAC_CTX_init(ctx);
-    HMAC_CTX_reset(ctx); // in newer version
+    //HMAC_CTX_init(hmac_ctx);
+    HMAC_CTX_reset(hmac_ctx); // in newer version
 
     /* Konfiguracja kontekstu: */
-    retval = HMAC_Init_ex(ctx, key, sizeof(key), EVP_md5(), NULL);
+    retval = HMAC_Init_ex(hmac_ctx, keyA, sizeof(keyA), EVP_md5(), NULL);
     if (!retval) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
 
     /* Obliczenie kodu HMAC: */
-    retval = HMAC_Update(ctx, message, message_len);
+    retval = HMAC_Update(hmac_ctx, message, message_len);
     if (!retval) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
 
     /*Zapisanie kodu HMAC w buforze 'result': */
-    retval = HMAC_Final(ctx, result, &result_len);
+    retval = HMAC_Final(hmac_ctx, result, &result_len);
     if (!retval) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
@@ -135,8 +208,8 @@ int main(int argc, char** argv) {
      * Usuwa wszystkie informacje z kontekstu i zwalnia pamiec zwiazana
      * z kontekstem:
      */
-    //HMAC_CTX_cleanup(ctx);
-    HMAC_CTX_free(ctx);  //in newer version
+    //HMAC_CTX_cleanup(hmac_ctx);
+    HMAC_CTX_free(hmac_ctx);  //in newer version
 
     // Weryfikacja HMAC:
     for(int i = 0; i<MD5_DIGEST_SIZE; i++)
@@ -145,6 +218,9 @@ int main(int argc, char** argv) {
         {
             printf("Verification failed: HMAC digest do not match!\n");
             exit(EXIT_FAILURE);
+        }
+        else{
+            printf(":)\n");
         }
     }
     printf("HMAC verification successful.\n");
