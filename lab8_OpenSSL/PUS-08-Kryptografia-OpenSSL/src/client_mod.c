@@ -21,19 +21,13 @@ int main(int argc, char** argv) {
     socklen_t       addr_len;               /* Rozmiar struktury w bajtach. */
 
         /* Bufor na szyfrogram: */
-    //unsigned char ciphertext[256+MD5_DIGEST_SIZE];
     unsigned char ciphertext[1024];
         /* Bufor na wiadomosc z MAC: */
-    //char buff[256+MD5_DIGEST_SIZE];
     char buff[1024];
-    for(int i = 0; i<256+MD5_DIGEST_SIZE; i++)
-    {
-        buff[i] = '\0';
-    }
         /* Wiadomosc: */
     char message[256] = "Laboratorium PUS.";
-        /* Skrot wiadomosci: */
-    char result[MD5_DIGEST_SIZE];
+        /* HMAC wiadomosci: */
+    char hmac_buff[MD5_DIGEST_SIZE];
 
         /* Klucze: */
     char keyA[] = {0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,
@@ -44,11 +38,17 @@ int main(int argc, char** argv) {
                            0x00,0x01,0x02,0x03,0x04,0x05
                           };
 
-    /* Rozmiar tekstu i szyfrogramu: */
+    // rozmiary poszceglnych bufforow 
     unsigned int message_len, result_len, ciphertext_len;
 
-    /* Kontekst: */
+    // Kontekst dla HMAC:
     HMAC_CTX *hmac_ctx;
+
+    // Kontekst dla szyfrowania:
+    EVP_CIPHER_CTX *cipher_ctx;
+
+    // Zastosowana metoda szyfrowania
+    const EVP_CIPHER* cipher = EVP_aes_128_ecb();;
 
 
     if (argc != 3) {
@@ -56,14 +56,15 @@ int main(int argc, char** argv) {
         exit(EXIT_FAILURE);
     }
 
-    ////////////////////////////////// HMAC
+#pragma region hmac
+    fprintf(stdout, "Generating HMAC...\n");
+
     message_len = strlen(message);
 
     /* Alokacja pamieci dla kontekstu: */
     hmac_ctx = HMAC_CTX_new();
 
     /* Inicjalizacja kontekstu: */
-    //HMAC_CTX_init(hmac_ctx);
     HMAC_CTX_reset(hmac_ctx); // in newer version
 
     /* Konfiguracja kontekstu: */
@@ -80,38 +81,23 @@ int main(int argc, char** argv) {
         exit(EXIT_FAILURE);
     }
 
-    fprintf(stdout, "Generating and adding HMAC to message...\n\n");
-    /*Zapisanie kodu HMAC w buforze 'result': */
-    retval = HMAC_Final(hmac_ctx, result, &result_len);
+    /* Zapisanie kodu HMAC w buforze 'hmac_buff': */
+    retval = HMAC_Final(hmac_ctx, hmac_buff, &result_len);
     if (!retval) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
 
-    /*
-     * Usuwa wszystkie informacje z kontekstu i zwalnia pamiec zwiazana
-     * z kontekstem:
-     */
-    //HMAC_CTX_cleanup(hmac_ctx);
-    HMAC_CTX_free(hmac_ctx);  //in newer version
+    /* Usuwa wszystkie informacje z kontekstu i zwalnia pamiec zwiazana z kontekstem: */
+    HMAC_CTX_free(hmac_ctx);
 
-    strcpy(buff, result);
+#pragma endregion hmac
+
+#pragma region cipher
+    fprintf(stdout, "Encrypting with ECB...\n");
+
+    strcpy(buff, hmac_buff);
     strcpy(buff+MD5_DIGEST_SIZE, message);
-    // if(buff[MD5_DIGEST_SIZE+strlen(message)]!='\0')
-    // {
-    //     buff[MD5_DIGEST_SIZE+strlen(message)] = '\0';
-    //     printf("Need!\n");
-    // }
-    printf("Result:\n%s\n",result);
-    printf("Message:\n%s\n",message);
-    printf("Buff:\n%s\n",buff);
-
-    ////////////////////////////////// cipher
-
-    /* Kontekst: */
-    EVP_CIPHER_CTX *cipher_ctx;
-
-    const EVP_CIPHER* cipher;
 
     /* Zaladowanie tekstowych opisow bledow: */
     ERR_load_crypto_strings();
@@ -122,14 +108,6 @@ int main(int argc, char** argv) {
     /* Inicjalizacja kontekstu: */
     EVP_CIPHER_CTX_init(cipher_ctx);
 
-    /*
-     * Parametry algorytmu AES dla trybu ECB i klucza o rozmiarze 128-bitow.
-     * Liste funkcji typu "EVP_aes_128_ecb()" mozna uzyskac z pliku <openssl/evp.h>.
-     * Strony podrecznika systemowego nie sa kompletne.
-     */
-    cipher = EVP_aes_128_ecb();
-
-    fprintf(stdout, "Encrypting with ECB...\n\n");
     /* Konfiguracja kontekstu dla szyfrowania: */
     retval = EVP_EncryptInit_ex(cipher_ctx, cipher, NULL, keyB, NULL);
     if (!retval) {
@@ -157,22 +135,15 @@ int main(int argc, char** argv) {
         exit(EXIT_FAILURE);
     }
 
-    /*
-     * Usuwa wszystkie informacje z kontekstu i zwalnia pamiec zwiazana
-     * z kontekstem:
-     */
+    /* Usuwa wszystkie informacje z kontekstu i zwalnia pamiec zwiazana z kontekstem: */
+
     EVP_CIPHER_CTX_free(cipher_ctx);
 
     ciphertext_len += tmp;
-    printf("updated buff_len: %d\n",buff_len);
 
-////////////////////////////////TEST
+#pragma endregion cipher
 
-    printf("ciphertext:\n%s\n",ciphertext);
-    
-
-
-    ////////////////////////////////// UDP
+#pragma region udp
 
     /* Utworzenie gniazda dla protokolu UDP: */
     sockfd = socket(PF_INET, SOCK_DGRAM, 0);
@@ -214,9 +185,8 @@ int main(int argc, char** argv) {
         exit(EXIT_FAILURE);
     }
 
-    printf("Ciphertext_len: %d\n",ciphertext_len);
-    printf("Ciphertext:\n%s\n\n",ciphertext);
-
     close(sockfd);
+#pragma endregion udp
+
     exit(EXIT_SUCCESS);
 }

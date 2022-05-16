@@ -17,6 +17,7 @@ int main(int argc, char** argv) {
 
     int             sockfd; /* Deskryptor gniazda. */
     int             retval; /* Wartosc zwracana przez funkcje. */
+    int tmp;
 
     /* Gniazdowe struktury adresowe (dla klienta i serwera): */
     struct          sockaddr_in client_addr, server_addr;
@@ -28,14 +29,13 @@ int main(int argc, char** argv) {
     char            addr_buff[256];
 
         /* Bufor na odebrany szyfrogram: */
-    //unsigned char ciphertext[256+MD5_DIGEST_SIZE];
     unsigned char ciphertext[1024];
         /* Bufor na wiadomosc z MAC: */
-    char buff[1024]; //256+MD5_DIGEST_SIZE
+    char buff[1024];
         /* Wiadomosc: */
     char message[256];
-        /* Skrot wiadomosci: */
-    char result[MD5_DIGEST_SIZE];
+        /* HMAC wiadomosci: */
+    char hmac_buff[MD5_DIGEST_SIZE];
 
         /* Klucze: */
     char keyA[] = {0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,
@@ -47,17 +47,25 @@ int main(int argc, char** argv) {
                           };
 
 
-    /* Rozmiar tekstu i szyfrogramu: */
-    unsigned int message_len, result_len, ciphertext_len;
+    // rozmiary poszceglnych bufforow 
+    unsigned int message_len, result_len, ciphertext_len, buff_len;
 
-    /* Kontekst: */
+    // Kontekst dla HMAC:
     HMAC_CTX *hmac_ctx;
 
+    // Kontekst dla deszyfrowania:
+    EVP_CIPHER_CTX *cipher_ctx;
+
+    // Zastosowana metoda szyfrowania
+    const EVP_CIPHER* cipher = EVP_aes_128_ecb();
+    
 
     if (argc != 2) {
         fprintf(stderr, "Invocation: %s <PORT>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
+
+#pragma region udp
 
     /* Utworzenie gniazda dla protokolu UDP: */
     sockfd = socket(PF_INET, SOCK_DGRAM, 0);
@@ -100,49 +108,33 @@ int main(int argc, char** argv) {
     }
     
     ciphertext_len = retval;
-    printf("Ciphertext_len: %d\n",ciphertext_len);
-    printf("Ciphertext:\n%s\n\n",ciphertext);
 
     fprintf(stdout, "UDP datagram received from %s:%d.\n",
         inet_ntop(AF_INET, &client_addr.sin_addr, addr_buff, sizeof(addr_buff)),
         ntohs(client_addr.sin_port)
         );
 
+    #pragma endregion udp
+    
+#pragma region cipher
+    fprintf(stdout, "Decrypting with ECB...\n");
 
-
-    ////////////////////////////////// cipher
-
-        /* Kontekst: */
-    EVP_CIPHER_CTX *cipher_ctx;
-
-    const EVP_CIPHER* cipher;
-
-    /* Zaladowanie tekstowych opisow bledow: */
+    // Zaladowanie tekstowych opisow bledow:
     ERR_load_crypto_strings();
 
-    /*
-     * Utworzenie kontekstu pod deszyfrowanie
-     */
+    // Utworzenie kontekstu pod deszyfrowanie:
     cipher_ctx = EVP_CIPHER_CTX_new();
 
-    /* Konfiguracja kontekstu dla odszyfrowywania: */
-    cipher = EVP_aes_128_ecb();
-    fprintf(stdout, "Decrypting with ECB...\n\n");
+    // Konfiguracja kontekstu dla odszyfrowywania:
     retval = EVP_DecryptInit_ex(cipher_ctx, cipher, NULL, keyB, NULL);
     if (!retval) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
 
-    /*
-     * Domyslnie OpenSSL stosuje padding. 0 - padding nie bedzie stosowany.
-     * Funkcja moze byc wywolana tylko po konfiguracji kontekstu
-     * dla szyfrowania/deszyfrowania (odzielnie dla kazdej operacji).
-     */
     EVP_CIPHER_CTX_set_padding(cipher_ctx, 1);
 
-    int buff_len;
-    /* Odszyfrowywanie: */
+    // Odszyfrowywanie:
     retval = EVP_DecryptUpdate(cipher_ctx, (unsigned char*)buff, &buff_len,
                                ciphertext, ciphertext_len);
 
@@ -151,11 +143,6 @@ int main(int argc, char** argv) {
         exit(EXIT_FAILURE);
     }
 
-    /*
-     * Prosze zwrocic uwage, ze rozmiar bufora 'plaintext' musi byc co najmniej o
-     * rozmiar bloku wiekszy od dlugosci szyfrogramu (na padding):
-     */
-    int tmp;
     retval = EVP_DecryptFinal_ex(cipher_ctx, (unsigned char*)buff + buff_len, &tmp);
     if (!retval) {
         ERR_print_errors_fp(stderr);
@@ -163,16 +150,19 @@ int main(int argc, char** argv) {
     }
 
     buff_len += tmp;
-    printf("updated buff_len: %d\n",buff_len);
     buff[buff_len] = '\0';
-    fprintf(stdout, "Plaintext:\n%s\n", buff);
 
     EVP_CIPHER_CTX_free(cipher_ctx);
-    /* Zwolnienie tekstowych opisow bledow: */
+
+    // Zwolnienie tekstowych opisow bledow:
     ERR_free_strings();
 
-    ////////////////////////////////// HMAC
+#pragma endregion cipher
     
+#pragma region hmac
+
+    fprintf(stdout, "Verifying HMAC...\n");
+
     strcpy(message, buff+MD5_DIGEST_SIZE);
     message_len = strlen(message);
 
@@ -180,8 +170,7 @@ int main(int argc, char** argv) {
     hmac_ctx = HMAC_CTX_new();
 
     /* Inicjalizacja kontekstu: */
-    //HMAC_CTX_init(hmac_ctx);
-    HMAC_CTX_reset(hmac_ctx); // in newer version
+    HMAC_CTX_reset(hmac_ctx);
 
     /* Konfiguracja kontekstu: */
     retval = HMAC_Init_ex(hmac_ctx, keyA, sizeof(keyA), EVP_md5(), NULL);
@@ -197,37 +186,34 @@ int main(int argc, char** argv) {
         exit(EXIT_FAILURE);
     }
 
-    /*Zapisanie kodu HMAC w buforze 'result': */
-    retval = HMAC_Final(hmac_ctx, result, &result_len);
+    /*Zapisanie kodu HMAC w buforze 'hmac_buff': */
+    retval = HMAC_Final(hmac_ctx, hmac_buff, &result_len);
     if (!retval) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
 
-    /*
-     * Usuwa wszystkie informacje z kontekstu i zwalnia pamiec zwiazana
-     * z kontekstem:
-     */
-    //HMAC_CTX_cleanup(hmac_ctx);
-    HMAC_CTX_free(hmac_ctx);  //in newer version
 
-    // Weryfikacja HMAC:
+    /* Usuwa wszystkie informacje z kontekstu i zwalnia pamiec zwiazana z kontekstem: */
+    HMAC_CTX_free(hmac_ctx);
+
+    /* Weryfikacja HMAC: */
     for(int i = 0; i<MD5_DIGEST_SIZE; i++)
     {
-        if(buff[i] != result[i])
+        if(buff[i] != hmac_buff[i])
         {
             printf("Verification failed: HMAC digest do not match!\n");
             exit(EXIT_FAILURE);
         }
-        else{
-            printf(":)\n");
-        }
     }
     printf("HMAC verification successful.\n");
+
+#pragma endregion hmac
 
     fprintf(stdout, "Message: ");
     fwrite(message, message_len, retval, stdout);
     fprintf(stdout, "\n");
+
 
     close(sockfd);
     exit(EXIT_SUCCESS);
