@@ -11,6 +11,7 @@
 
 int main(int argc, char** argv) {
     
+    int new_uid;
 
     /* Deskryptory dla gniazda nasluchujacego i polaczonego: */
     int             listenfd, connfd;
@@ -34,6 +35,7 @@ int main(int argc, char** argv) {
     }
 
     port_number = atoi(argv[1]);
+    new_uid = atoi(argv[2]);
 
     /*
      * Tylko programy uruchamione przez roota lub z ustawionym bitem SUID moga
@@ -87,7 +89,7 @@ int main(int argc, char** argv) {
 
 
     /* Jezeli EUID == 0, to setuid() zmienia UID, EUID oraz saved set-user-ID: */
-    setuid(getuid());
+    setuid(new_uid);
 
     if (getresuid(&ruid, &euid, &suid) == -1) {
         perror("getresgid()");
