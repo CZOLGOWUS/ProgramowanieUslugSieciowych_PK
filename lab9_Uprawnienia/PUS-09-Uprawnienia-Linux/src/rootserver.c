@@ -29,8 +29,8 @@ int main(int argc, char** argv) {
 
     uid_t           ruid, euid, suid; /* Identyfikatory uzytkownika. */
 
-    if (argc != 2) {
-        fprintf(stderr, "Invocation: %s <PORT>\n", argv[0]);
+    if (argc != 3) {
+        fprintf(stderr, "Invocation: %s <PORT> <NEW_UID>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
