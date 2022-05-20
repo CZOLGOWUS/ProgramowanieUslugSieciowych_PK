@@ -35,17 +35,17 @@ int main(int argc, char** argv) {
 
     port_number = atoi(argv[1]);
 
-    /*
-     * Tylko programy uruchamione przez roota lub z ustawionym bitem SUID moga
-     * powiazac gniazdo z numerem portu < 1024.
-     */
-    if (port_number < 1024) {
-        if (geteuid() != 0) {
-            fprintf(stderr, "You need root privileges to "
-                    "bind to well-known port (<1024).\n");
-            exit(EXIT_FAILURE);
-        }
-    }
+    // /*
+    //  * Tylko programy uruchamione przez roota lub z ustawionym bitem SUID moga
+    //  * powiazac gniazdo z numerem portu < 1024.
+    //  */
+    // if (port_number < 1024) {
+    //     if (geteuid() != 0) {
+    //         fprintf(stderr, "You need root privileges to "
+    //                 "bind to well-known port (<1024).\n");
+    //         exit(EXIT_FAILURE);
+    //     }
+    // }
 
     /* Utworzenie gniazda dla protokolu TCP: */
     listenfd = socket(PF_INET, SOCK_STREAM, 0);
