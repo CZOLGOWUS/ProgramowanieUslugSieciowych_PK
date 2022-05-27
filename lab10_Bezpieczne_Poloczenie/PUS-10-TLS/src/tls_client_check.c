@@ -84,7 +84,7 @@ int main(int count, char *strings[])
     OpenSSL_add_all_algorithms();
 
     // Utworzenie kontekstu szyfrowania
-    ctx = SSL_CTX_new(DTLS_client_method());
+    ctx = SSL_CTX_new(TLS_client_method());
     if ( ctx == NULL )
     {
         ERR_print_errors_fp(stderr);

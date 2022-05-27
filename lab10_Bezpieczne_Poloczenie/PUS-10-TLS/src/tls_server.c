@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
     OpenSSL_add_all_algorithms();
 
     // Utworzenie kontekstu szyfrowania
-    ctx = SSL_CTX_new(DTLS_server_method());
+    ctx = SSL_CTX_new(TLS_server_method());
     if ( ctx == NULL )
     {
         ERR_print_errors_fp(stderr);
